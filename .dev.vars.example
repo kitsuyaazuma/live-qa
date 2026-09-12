@@ -1,0 +1,12 @@
+# Copy to .dev.vars (gitignored) and fill in. Overrides wrangler.jsonc vars.
+
+# BCP-47 codes, so a provider that wants codes needs no reverse lookup.
+# Regional codes work too: en-GB, pt-BR.
+TRANSLATION_TARGET_LANG="en"
+TRANSLATION_SOURCE_LANG="ja"
+
+# Free-form cues for the translator: the event, the speaker, terms to leave as
+# they are, phrasing you prefer. Anything that helps; nothing is required.
+TRANSLATION_CONTEXT="Event: Platform Engineering Kaigi 2026\nTalk: Architecting Agentic Development Platforms\nSpeaker: author of a book on platform thinking, dislikes jargon\nLeave these as written: Internal Developer Platform, platform orchestrator\nTranslate 基盤 as \"platform\", not \"foundation\""
+
+# TRANSLATION_MODEL="@cf/qwen/qwen3.8-27b"

@@ -21,6 +21,17 @@
 			}
 		]
 	},
+	"ai": {
+		"binding": "AI"
+	},
+	"vars": {
+		"TRANSLATION_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+		// "TRANSLATION_MODEL": "@cf/qwen/qwen3.8-27b",
+		// BCP-47 codes. Empty source lets the model detect it.
+		"TRANSLATION_TARGET_LANG": "en",
+		"TRANSLATION_SOURCE_LANG": "",
+		"TRANSLATION_CONTEXT": ""
+	},
 	"observability": {
 		"enabled": true
 	},
