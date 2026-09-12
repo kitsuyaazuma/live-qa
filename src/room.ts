@@ -339,6 +339,14 @@ export class Room extends DurableObject<Env> {
 		return { version: this.version, moderated: this.moderated, questions };
 	}
 
+	/** `deleteAll` because internal metadata survives selective deletion. */
+	async reset(): Promise<void> {
+		await this.ctx.storage.deleteAll();
+		this.ctx.storage.sql.exec(SCHEMA);
+		this.version = 0;
+		this.moderated = false;
+	}
+
 	/** Runs with no await since the last write, so the room row lands atomically. */
 	private commit(version: number): void {
 		this.ctx.storage.sql.exec('UPDATE room SET version = ? WHERE id = 1', version);

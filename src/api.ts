@@ -4,10 +4,8 @@ import { roomLocationFromEnv } from './config';
 import { requireId, requireTarget, requireText } from './room';
 
 /**
- * One room is one Durable Object instance, and an instance saturates somewhere
- * around a thousand requests a second, so the audience read must be served from
- * the colo cache rather than the object. Writes are rare enough to go straight
- * through.
+ * One room is one object, saturating near a thousand requests a second, so the
+ * audience read comes from the colo cache. Writes are rare enough to go direct.
  */
 const AUDIENCE_MAX_AGE = 2;
 
@@ -78,10 +76,8 @@ api.put('/api/rooms/:roomId/questions/:questionId/vote', async (c) => {
 	return c.json(result, result.status === 'unknown-question' ? 404 : 200);
 });
 
-/**
- * The cache key drops the query string so a client cannot bust the cache — and
- * so reach the object — by appending a parameter the route never reads.
- */
+/** The key drops the query string: appending one would otherwise bust the cache
+ * and reach the object. */
 api.get('/api/rooms/:roomId/questions', async (c) => {
 	const url = new URL(c.req.url);
 	const key = new Request(`${url.origin}${url.pathname}`, { method: 'GET' });
@@ -110,18 +106,33 @@ api.get('/api/rooms/:roomId/questions', async (c) => {
 	return response;
 });
 
-/** A placeholder gate, not an authentication system: one shared bearer token. */
+/** The prefix is the only guard, so a room an audience uses is out of reach. */
+const SCRATCH_PREFIX = 'scratch-';
+
+/** Placeholder gates, not an authentication system: one shared bearer each. */
+function bearerMatches(offered: string | undefined, expected: string): boolean {
+	const a = new TextEncoder().encode(offered?.replace(/^Bearer /, '') ?? '');
+	const b = new TextEncoder().encode(expected);
+	return a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
+}
+
 api.use('/api/rooms/:roomId/moderator/*', async (c, next) => {
 	const expected = c.env.MODERATOR_TOKEN?.trim();
 	if (!expected) return c.json({ error: 'moderation is not configured' }, 503);
-
-	const offered = c.req.header('authorization')?.replace(/^Bearer /, '') ?? '';
-	const a = new TextEncoder().encode(offered);
-	const b = new TextEncoder().encode(expected);
-	if (a.byteLength !== b.byteLength || !crypto.subtle.timingSafeEqual(a, b)) {
+	if (!bearerMatches(c.req.header('authorization'), expected)) {
 		return c.json({ error: 'unauthorized' }, 401);
 	}
 	return next();
+});
+
+api.delete('/api/rooms/:roomId', async (c) => {
+	const roomId = c.req.param('roomId');
+	if (!roomId.startsWith(SCRATCH_PREFIX)) {
+		return c.json({ error: `only ${SCRATCH_PREFIX}* rooms can be emptied` }, 403);
+	}
+
+	await room(c.env, roomId).reset();
+	return c.json({ reset: roomId });
 });
 
 api.get('/api/rooms/:roomId/moderator/questions', async (c) => {

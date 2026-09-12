@@ -194,3 +194,33 @@ describe('moderator api', () => {
 		expect(await changed.json()).toMatchObject({ status: 'changed' });
 	});
 });
+
+describe('disposable rooms', () => {
+	function wipe(roomId: string) {
+		return call(`/api/rooms/${roomId}`, { method: 'DELETE' });
+	}
+
+	it('refuses to empty a room that is not disposable', async () => {
+		await post('pek2026-keynote', 'q1');
+
+		const refused = await wipe('pek2026-keynote');
+
+		expect(refused.status).toBe(403);
+		expect((await read('pek2026-keynote').then((r) => r.json())) as { version: number }).toEqual(
+			expect.objectContaining({ version: 1 }),
+		);
+	});
+
+	it('empties a disposable room and leaves it usable', async () => {
+		await post('scratch-2', 'q1');
+
+		const wiped = await wipe('scratch-2');
+
+		expect(wiped.status).toBe(200);
+		const after = await call('/api/rooms/scratch-2/moderator/questions', { headers: TOKEN }).then(
+			(r) => r.json() as Promise<{ version: number; questions: unknown[] }>,
+		);
+		expect(after).toMatchObject({ version: 0, questions: [] });
+		expect((await post('scratch-2', 'q2')).status).toBe(201);
+	});
+});
