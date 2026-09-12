@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { Hono } from 'hono';
 
 /** One instance per Q&A room, addressed by room id. */
 export class Room extends DurableObject<Env> {
@@ -7,8 +8,6 @@ export class Room extends DurableObject<Env> {
 	}
 }
 
-export default {
-	async fetch(_request, _env, _ctx): Promise<Response> {
-		return new Response('live-qa', { status: 404 });
-	},
-} satisfies ExportedHandler<Env>;
+const app = new Hono<{ Bindings: Env }>();
+
+export default app;
