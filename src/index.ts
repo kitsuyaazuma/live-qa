@@ -47,7 +47,7 @@ export default {
 	 * @param ctx - The execution context of the Worker
 	 * @returns The response to be sent back to the client
 	 */
-	async fetch(request, env, ctx): Promise<Response> {
+	async fetch(_request, env, _ctx): Promise<Response> {
 		// Create a stub to open a communication channel with the Durable Object
 		// instance named "foo".
 		//
