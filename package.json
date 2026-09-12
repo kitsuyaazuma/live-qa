@@ -6,9 +6,15 @@
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"typecheck": "tsc --noEmit",
+		"format": "biome format --write .",
+		"lint": "biome lint .",
+		"check": "biome check --write .",
+		"ci": "biome ci . && tsc --noEmit"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.5.13",
 		"@types/node": "^22.20.2",
 		"typescript": "^5.5.2",
 		"wrangler": "^4.131.0"
