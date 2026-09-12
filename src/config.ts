@@ -45,17 +45,20 @@ function required(value: string | undefined, name: string): string {
 }
 
 /** Rejected at startup rather than as a runtime error mid-event. */
-function requiredModel(value: string | undefined): SupportedModel {
-	const model = required(value, 'TRANSLATION_MODEL');
-	if (!(SUPPORTED_MODELS as readonly string[]).includes(model)) {
-		throw new Error(`TRANSLATION_MODEL ${model} is not one of: ${SUPPORTED_MODELS.join(', ')}`);
+function requiredModel(value: string): SupportedModel {
+	if (!(SUPPORTED_MODELS as readonly string[]).includes(value)) {
+		throw new Error(`TRANSLATION_MODEL ${value} is not one of: ${SUPPORTED_MODELS.join(', ')}`);
 	}
-	return model as SupportedModel;
+	return value as SupportedModel;
 }
 
-export function translationSettingsFromEnv(env: Env): TranslationSettings {
+/** No model means no translation: a speaker can share the audience's language. */
+export function translationSettingsFromEnv(env: Env): TranslationSettings | null {
+	const model = env.TRANSLATION_MODEL?.trim();
+	if (!model) return null;
+
 	return {
-		model: requiredModel(env.TRANSLATION_MODEL),
+		model: requiredModel(model),
 		targetLang: required(env.TRANSLATION_TARGET_LANG, 'TRANSLATION_TARGET_LANG'),
 		sourceLang: env.TRANSLATION_SOURCE_LANG?.trim() || undefined,
 		context: env.TRANSLATION_CONTEXT?.trim() ?? '',

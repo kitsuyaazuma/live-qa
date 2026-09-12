@@ -293,6 +293,15 @@ describe('Room', () => {
 		expect((await r.snapshot({ view: 'moderator' })).questions).toHaveLength(1);
 	});
 
+	it('schedules no translation when no model is configured', async () => {
+		const r = room('untranslated');
+		await r.postQuestion({ id: 'q1', text: TEXT });
+
+		const alarm = await runInDurableObject(r, (_instance, state) => state.storage.getAlarm());
+
+		expect(alarm).toBeNull();
+	});
+
 	it('rejects text and ids it will not store', async () => {
 		const r = room('reject');
 

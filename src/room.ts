@@ -1,4 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
+import { translationSettingsFromEnv } from './config';
+import { type TranslationSettings, WorkersAiTranslator } from './translate';
 
 export const STATUSES = ['pending', 'published', 'answering', 'answered', 'dismissed'] as const;
 
@@ -45,6 +47,11 @@ export type StatusResult =
 export type TranslationResult =
 	| { status: 'applied'; version: number; question: Question }
 	| UnknownQuestion;
+
+/** Workers AI allows three hundred text generations a minute per account. */
+const TRANSLATION_BATCH = 5;
+const TRANSLATION_DELAY_MS = 1000;
+const TRANSLATION_ATTEMPTS_MAX = 3;
 
 /** Bounds what one room can be made to store; the display caps live elsewhere. */
 const TEXT_MAX = 2000;
@@ -152,9 +159,11 @@ export function requireTarget(value: string): Exclude<Status, 'pending'> {
 export class Room extends DurableObject<Env> {
 	private version = 0;
 	private moderated = false;
+	private readonly translation: TranslationSettings | null;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
+		this.translation = translationSettingsFromEnv(env);
 		ctx.blockConcurrencyWhile(async () => {
 			ctx.storage.sql.exec(SCHEMA);
 			const row = ctx.storage.sql
@@ -164,6 +173,8 @@ export class Room extends DurableObject<Env> {
 				.one();
 			this.version = row.version;
 			this.moderated = row.moderated === 1;
+			// The question and its alarm are separate writes, so one can arrive alone.
+			if (this.untranslated(1).length > 0) await this.scheduleTranslation();
 		});
 	}
 
@@ -189,7 +200,10 @@ export class Room extends DurableObject<Env> {
 				Date.now(),
 			).rowsWritten > 0;
 
-		if (created) this.commit(next);
+		if (created) {
+			this.commit(next);
+			await this.scheduleTranslation();
+		}
 
 		return { created, version: this.version, question: this.question(id) };
 	}
@@ -299,6 +313,30 @@ export class Room extends DurableObject<Env> {
 		return { status: 'applied', version: this.version, question: this.question(id) };
 	}
 
+	/** A failure is recorded as an attempt rather than thrown: a throw retries the
+	 * whole batch, so one question the model refuses would hold up the rest. */
+	async alarm(): Promise<void> {
+		if (!this.translation) return;
+
+		const due = this.untranslated(TRANSLATION_BATCH);
+		if (due.length === 0) return;
+
+		const translator = new WorkersAiTranslator(this.env.AI, this.translation);
+		for (const result of await translator.translate(due)) {
+			await this.applyTranslation({
+				id: result.id,
+				result: result.error
+					? { error: result.error }
+					: { headline: result.headline, full: result.full },
+			});
+		}
+
+		// Asked again rather than inferred: questions arrive while the model works.
+		if (this.untranslated(1).length > 0) {
+			await this.ctx.storage.setAlarm(Date.now() + TRANSLATION_DELAY_MS);
+		}
+	}
+
 	/** Pending questions stay pending: switching off must not publish them. */
 	async setModeration(enabled: boolean): Promise<{ version: number; moderated: boolean }> {
 		if (enabled === this.moderated) return { version: this.version, moderated: this.moderated };
@@ -365,5 +403,31 @@ export class Room extends DurableObject<Env> {
 				.exec<QuestionRow>(`SELECT ${COLUMNS} FROM questions WHERE id = ?`, id)
 				.one(),
 		);
+	}
+
+	/** Only when none is pending, or a room that keeps receiving questions would
+	 * push its own alarm out of reach. */
+	private async scheduleTranslation(): Promise<void> {
+		if (!this.translation) return;
+		if ((await this.ctx.storage.getAlarm()) !== null) return;
+		await this.ctx.storage.setAlarm(Date.now() + TRANSLATION_DELAY_MS);
+	}
+
+	/** `json_valid` first, so one unreadable row cannot wedge the queue. */
+	private untranslated(limit: number): { id: string; text: string }[] {
+		return this.ctx.storage.sql
+			.exec<{ id: string; text: string }>(
+				`SELECT id, text FROM questions
+				 WHERE status != 'dismissed'
+				   AND (translation IS NULL
+				        OR (json_valid(translation)
+				            AND json_extract(translation, '$.ok') = 0
+				            AND json_extract(translation, '$.attempts') < ?))
+				 ORDER BY version
+				 LIMIT ?`,
+				TRANSLATION_ATTEMPTS_MAX,
+				limit,
+			)
+			.toArray();
 	}
 }

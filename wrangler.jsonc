@@ -26,6 +26,7 @@
 		"remote": true
 	},
 	"vars": {
+		// Empty leaves questions untranslated.
 		"TRANSLATION_MODEL": "@cf/google/gemma-4-26b-a4b-it",
 		// "TRANSLATION_MODEL": "@cf/qwen/qwen3.8-27b",
 		// BCP-47 codes. Empty source lets the model detect it.

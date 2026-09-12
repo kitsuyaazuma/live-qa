@@ -39,10 +39,11 @@ describe('translationSettingsFromEnv', () => {
 		).toThrow(/not one of/);
 	});
 
+	it('reads nothing when no model is configured', () => {
+		expect(translationSettingsFromEnv(env({ TRANSLATION_TARGET_LANG: 'en' }))).toBeNull();
+	});
+
 	it('names the missing var rather than failing later', () => {
-		expect(() => translationSettingsFromEnv(env({ TRANSLATION_TARGET_LANG: 'en' }))).toThrow(
-			/TRANSLATION_MODEL is not set/,
-		);
 		expect(() =>
 			translationSettingsFromEnv(env({ TRANSLATION_MODEL: '@cf/qwen/qwen3.8-27b' })),
 		).toThrow(/TRANSLATION_TARGET_LANG is not set/);
