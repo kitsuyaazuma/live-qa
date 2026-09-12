@@ -33,3 +33,6 @@ jobs:
 
       - name: TypeScript
         run: pnpm run typecheck
+
+      - name: Vitest
+        run: pnpm test
