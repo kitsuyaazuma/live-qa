@@ -125,14 +125,14 @@ function toQuestion(row: QuestionRow): Question {
 	};
 }
 
-function requireId(value: string, field: string): string {
+export function requireId(value: string, field: string): string {
 	if (value.length === 0 || value.length > ID_MAX) {
 		throw new Error(`${field} must be 1 to ${ID_MAX} characters`);
 	}
 	return value;
 }
 
-function requireText(value: string): string {
+export function requireText(value: string): string {
 	const text = value.trim();
 	if (text.length === 0 || text.length > TEXT_MAX) {
 		throw new Error(`text must be 1 to ${TEXT_MAX} characters after trimming`);
@@ -141,7 +141,7 @@ function requireText(value: string): string {
 }
 
 /** Nothing returns to `pending`: a reviewed question must not become unreviewed. */
-function requireTarget(value: string): Exclude<Status, 'pending'> {
+export function requireTarget(value: string): Exclude<Status, 'pending'> {
 	if (value === 'pending' || !(STATUSES as readonly string[]).includes(value)) {
 		throw new Error(`status must be one of: ${STATUSES.slice(1).join(', ')}`);
 	}

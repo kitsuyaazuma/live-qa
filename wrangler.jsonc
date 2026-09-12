@@ -31,7 +31,10 @@
 		// BCP-47 codes. Empty source lets the model detect it.
 		"TRANSLATION_TARGET_LANG": "en",
 		"TRANSLATION_SOURCE_LANG": "",
-		"TRANSLATION_CONTEXT": ""
+		"TRANSLATION_CONTEXT": "",
+		// Honoured only when the object is first created. Empty lets Cloudflare
+		// place it at whichever colo reaches it first.
+		"ROOM_LOCATION_HINT": ""
 	},
 	"observability": {
 		"enabled": true

@@ -19,7 +19,10 @@ export default defineConfig({
 						wrangler: { configPath: './wrangler.jsonc' },
 						// The bundled workerd trails the project's compatibility date, and
 						// remote bindings would need credentials CI does not have.
-						miniflare: { compatibilityDate: '2026-08-22' },
+						miniflare: {
+							compatibilityDate: '2026-08-22',
+							bindings: { MODERATOR_TOKEN: 'test-token' },
+						},
 						remoteBindings: false,
 					}),
 				],

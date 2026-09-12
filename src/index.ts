@@ -1,7 +1,5 @@
-import { Hono } from 'hono';
+import { api } from './api';
 
 export { Room } from './room';
 
-const app = new Hono<{ Bindings: Env }>();
-
-export default app;
+export default api;

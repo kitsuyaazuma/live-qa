@@ -1,5 +1,41 @@
 import { SUPPORTED_MODELS, type SupportedModel, type TranslationSettings } from './translate';
 
+/** Kept in step with the platform type by `satisfies`, since there is no
+ * runtime list to read. */
+const LOCATION_HINTS = [
+	'wnam',
+	'enam',
+	'sam',
+	'weur',
+	'eeur',
+	'apac',
+	'apac-ne',
+	'apac-se',
+	'oc',
+	'afr',
+	'me',
+] as const satisfies readonly DurableObjectLocationHint[];
+
+let warnedAboutHint = false;
+
+/**
+ * Only honoured when the room is first created, and the runtime accepts an
+ * unknown value silently — so a typo would place the room away from the venue
+ * and never say so. Warned about rather than rejected: refusing would take the
+ * event down over a placement preference if this list ever fell behind.
+ */
+export function roomLocationFromEnv(env: Env): DurableObjectLocationHint | undefined {
+	const hint = env.ROOM_LOCATION_HINT?.trim();
+	if (!hint) return undefined;
+	// Once per isolate: this runs on the hot path, and a misconfigured hint would
+	// otherwise log on every request of the event.
+	if (!warnedAboutHint && !(LOCATION_HINTS as readonly string[]).includes(hint)) {
+		warnedAboutHint = true;
+		console.warn(`ROOM_LOCATION_HINT ${hint} is not a known location hint; it will be ignored`);
+	}
+	return hint as DurableObjectLocationHint;
+}
+
 function required(value: string | undefined, name: string): string {
 	const trimmed = value?.trim();
 	if (!trimmed) {

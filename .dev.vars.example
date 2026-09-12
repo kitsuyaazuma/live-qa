@@ -7,6 +7,10 @@ TRANSLATION_SOURCE_LANG="ja"
 
 # Free-form cues for the translator: the event, the speaker, terms to leave as
 # they are, phrasing you prefer. Anything that helps; nothing is required.
-TRANSLATION_CONTEXT="Event: Platform Engineering Kaigi 2026\nTalk: Architecting Agentic Development Platforms\nSpeaker: author of a book on platform thinking, dislikes jargon\nLeave these as written: Internal Developer Platform, platform orchestrator\nTranslate 基盤 as \"platform\", not \"foundation\""
+TRANSLATION_CONTEXT="Event: Platform Engineering Kaigi 2026\nTalk: Architecting Agentic Development Platforms\nSpeaker: Kaspar von Grünberg, Author, Thinking in Platforms\nLeave these as written: Internal Developer Platform, IDP, platform orchestrator, Agentic Development Platform\nTranslate 基盤 as \"platform\", not \"foundation\""
 
 # TRANSLATION_MODEL="@cf/qwen/qwen3.8-27b"
+
+# Shared bearer token for the moderator routes; absent disables them.
+# In production: wrangler secret put MODERATOR_TOKEN
+MODERATOR_TOKEN=""
