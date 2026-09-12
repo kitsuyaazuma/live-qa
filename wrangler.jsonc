@@ -22,7 +22,8 @@
 		]
 	},
 	"ai": {
-		"binding": "AI"
+		"binding": "AI",
+		"remote": true
 	},
 	"vars": {
 		"TRANSLATION_MODEL": "@cf/google/gemma-4-26b-a4b-it",
