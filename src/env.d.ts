@@ -2,10 +2,16 @@
  * Secrets, which `wrangler types` cannot see. Declaration merging keeps them
  * through a regenerated worker-configuration.d.ts.
  *
- * Regenerate with .dev.vars moved aside, or wrangler writes a required
- * MODERATOR_TOKEN that collides with this one and costs Env its type.
+ * Regenerate with .dev.vars moved aside, or wrangler writes these in as
+ * required strings, which collides with this and costs Env its type.
  */
 interface Env {
-	/** `wrangler secret put MODERATOR_TOKEN`. Absent disables the moderator routes. */
-	MODERATOR_TOKEN?: string;
+	/** Signs the session cookie. Any long random string; rotating it signs everyone out. */
+	SESSION_SECRET?: string;
+	/** Comma separated. The people who may create rooms and run any of them. */
+	ADMIN_EMAILS?: string;
+	GOOGLE_CLIENT_ID?: string;
+	GOOGLE_CLIENT_SECRET?: string;
+	GITHUB_CLIENT_ID?: string;
+	GITHUB_CLIENT_SECRET?: string;
 }

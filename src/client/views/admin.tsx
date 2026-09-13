@@ -32,21 +32,11 @@ function inLane(questions: Question[], lane: Lane): Question[] {
 
 export default function Admin({ roomId }: { roomId: string }) {
 	return (
-		<Operator roomId={roomId}>
-			{(room, token) => <AdminScreen roomId={roomId} room={room} token={token} />}
-		</Operator>
+		<Operator roomId={roomId}>{(room) => <AdminScreen roomId={roomId} room={room} />}</Operator>
 	);
 }
 
-function AdminScreen({
-	roomId,
-	room,
-	token,
-}: {
-	roomId: string;
-	room: StreamState;
-	token: string;
-}) {
+function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 	const [lane, setLane] = useState<Lane>('live');
 	const [busy, setBusy] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -70,7 +60,7 @@ function AdminScreen({
 	async function move(question: Question, to: Exclude<Status, 'pending'>) {
 		setBusy(question.id);
 		try {
-			await api.setStatus(roomId, question.id, to, token);
+			await api.setStatus(roomId, question.id, to);
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : 'that did not go through');
 		} finally {
@@ -87,7 +77,7 @@ function AdminScreen({
 					Present
 				</Link>
 				<span className="ml-auto">
-					<Settings roomId={roomId} room={room} token={token} shown={shown} onShown={setShown} />
+					<Settings roomId={roomId} room={room} shown={shown} onShown={setShown} />
 				</span>
 			</div>
 

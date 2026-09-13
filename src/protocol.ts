@@ -77,3 +77,20 @@ export function requireTarget(value: string): Exclude<Status, 'pending'> {
 	}
 	return value as Exclude<Status, 'pending'>;
 }
+
+export type Provider = 'google' | 'github';
+
+/** Someone who signed in. Only what a screen needs to show them. */
+export interface Account {
+	id: string;
+	provider: Provider;
+	email: string | null;
+	name: string;
+	avatar: string | null;
+}
+
+/** What the browser is told about its own session. */
+export interface Me {
+	account: Account;
+	admin: boolean;
+}

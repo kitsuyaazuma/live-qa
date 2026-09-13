@@ -3,13 +3,16 @@
 // Times the hop the event depends on: a moderator picks a question, and the
 // screen behind the speaker has to show it. Everything else can be a poll away.
 
+import { createHmac } from 'node:crypto';
+
 const base = process.env.BASE_URL?.replace(/\/$/, '');
-const token = process.env.MODERATOR_TOKEN;
+const secret = process.env.SESSION_SECRET;
+const userId = process.env.USER_ID;
 const room = process.env.ROOM ?? 'scratch-switch';
 const rounds = Number(process.env.ROUNDS ?? 20);
 
-if (!base || !token) {
-	console.error('set BASE_URL and MODERATOR_TOKEN');
+if (!base || !secret || !userId) {
+	console.error('set BASE_URL, SESSION_SECRET and USER_ID');
 	process.exit(1);
 }
 if (!room.startsWith('scratch-')) {
@@ -18,7 +21,9 @@ if (!room.startsWith('scratch-')) {
 }
 
 const rooms = `${base}/api/rooms/${room}`;
-const auth = { authorization: `Bearer ${token}` };
+// The same shape hono signs: value, a dot, the base64 hmac of the value.
+const signature = createHmac('sha256', secret).update(userId).digest('base64');
+const auth = { cookie: `session=${encodeURIComponent(`${userId}.${signature}`)}` };
 const json = { 'content-type': 'application/json', ...auth };
 
 async function seed(id) {

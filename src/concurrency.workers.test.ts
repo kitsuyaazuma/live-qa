@@ -1,5 +1,7 @@
-import { exports } from 'cloudflare:workers';
-import { describe, expect, it, vi } from 'vitest';
+import { env, exports } from 'cloudflare:workers';
+import { serializeSigned } from 'hono/utils/cookie';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { signIn } from './accounts';
 
 /**
  * The room is one Durable Object instance, so these check the two things that
@@ -10,7 +12,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 const BURST = 50;
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
-const TOKEN = { authorization: 'Bearer test-token' };
+let ADMIN: Record<string, string> = {};
+beforeAll(async () => {
+	const account = await signIn(env.DB, {
+		provider: 'google',
+		providerId: 'admin@example.com',
+		email: 'admin@example.com',
+		name: 'Admin',
+		avatar: null,
+	});
+	const cookie = await serializeSigned('session', account.id, 'test-secret');
+	ADMIN = { cookie: cookie.split(';')[0] ?? '' };
+});
 
 function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
@@ -43,7 +56,7 @@ async function warm(roomId: string) {
 }
 
 async function moderatorView(roomId: string) {
-	const response = await call(`/api/rooms/${roomId}/moderator/questions`, { headers: TOKEN });
+	const response = await call(`/api/rooms/${roomId}/moderator/questions`, { headers: ADMIN });
 	return (await response.json()) as { version: number; questions: { id: string; votes: number }[] };
 }
 

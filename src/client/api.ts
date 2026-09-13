@@ -1,4 +1,4 @@
-import type { Question, Snapshot, StatusResult, VoteResult } from '../protocol';
+import type { Me, Question, Snapshot, StatusResult, VoteResult } from '../protocol';
 
 const JSON_BODY = { 'content-type': 'application/json' };
 
@@ -73,19 +73,14 @@ export async function read(
 	return { snapshot: (await response.json()) as Snapshot, etag: response.headers.get('etag') };
 }
 
-function bearer(token: string): Record<string, string> {
-	return { authorization: `Bearer ${token}` };
-}
-
 export function setStatus(
 	roomId: string,
 	questionId: string,
 	status: Question['status'],
-	token: string,
 ): Promise<StatusResult> {
 	return send(`${rooms(roomId)}/moderator/questions/${encodeURIComponent(questionId)}`, {
 		method: 'PATCH',
-		headers: { ...JSON_BODY, ...bearer(token) },
+		headers: JSON_BODY,
 		body: JSON.stringify({ status }),
 	});
 }
@@ -93,11 +88,22 @@ export function setStatus(
 export function setModeration(
 	roomId: string,
 	enabled: boolean,
-	token: string,
 ): Promise<{ version: number; moderated: boolean }> {
 	return send(`${rooms(roomId)}/moderator/moderation`, {
 		method: 'PUT',
-		headers: { ...JSON_BODY, ...bearer(token) },
+		headers: JSON_BODY,
 		body: JSON.stringify({ enabled }),
 	});
+}
+
+/** Null is nobody: the browser holds no session the worker accepts. */
+export async function me(): Promise<Me | null> {
+	const response = await fetch('/api/me');
+	if (response.status === 401) return null;
+	if (!response.ok) throw new ApiError(response.status, await reason(response));
+	return (await response.json()) as Me;
+}
+
+export async function signOut(): Promise<void> {
+	await fetch('/auth/logout', { method: 'POST' });
 }

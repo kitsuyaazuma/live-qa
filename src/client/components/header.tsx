@@ -1,10 +1,13 @@
 import { type ReactNode, useEffect, useState } from 'react';
+import * as api from '../api';
 import { Anonymous, Moon, Sun } from '../icons';
 import { Link } from '../router';
 import { rememberTheme, type Theme, themePreference } from '../storage';
+import { useMe } from '../use-me';
 import { Banner } from './banner';
 import { Connected, type State } from './connected';
 import { GHOST } from './ghost';
+import { SignIn } from './sign-in';
 
 const THEMES: Theme[] = ['light', 'dark'];
 
@@ -43,6 +46,87 @@ function ThemeToggle() {
 	);
 }
 
+/** daisyUI's focus dropdown: open while the trigger or the panel has focus, so
+ * a click anywhere else closes it. */
+function Dropdown({
+	label,
+	trigger,
+	panel,
+	children,
+}: {
+	label: string;
+	trigger: ReactNode;
+	panel: string;
+	children: ReactNode;
+}) {
+	return (
+		<div className="dropdown dropdown-end">
+			{/* biome-ignore lint/a11y/useSemanticElements: Safari does not focus a button on click */}
+			<div
+				tabIndex={0}
+				role="button"
+				className="btn btn-ghost btn-circle btn-sm p-0"
+				aria-label={label}
+			>
+				{trigger}
+			</div>
+			<div
+				// biome-ignore lint/a11y/noNoninteractiveTabindex: focus inside the panel is what holds it open
+				tabIndex={0}
+				className={`dropdown-content bg-base-100 border-base-300 rounded-box z-30 mt-2 border shadow ${panel}`}
+			>
+				{children}
+			</div>
+		</div>
+	);
+}
+
+function Account() {
+	const me = useMe();
+
+	if (!me) {
+		return (
+			<Dropdown
+				label="You are anonymous. Sign in"
+				panel="w-72 p-4"
+				trigger={
+					<div className="avatar avatar-placeholder">
+						<div className="bg-base-200 text-base-content w-8 rounded-full">
+							<Anonymous className="size-4" />
+						</div>
+					</div>
+				}
+			>
+				<SignIn next={location.pathname} reason="You are anonymous here." />
+			</Dropdown>
+		);
+	}
+
+	const { name, avatar } = me.account;
+	return (
+		<Dropdown
+			label={`Signed in as ${name}`}
+			panel="w-56 p-2"
+			trigger={
+				<div className={`avatar ${avatar ? '' : 'avatar-placeholder'}`}>
+					<div className="bg-base-200 text-base-content w-8 rounded-full">
+						{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : name.slice(0, 1)}
+					</div>
+				</div>
+			}
+		>
+			<ul className="menu w-full p-0">
+				<li className="menu-title truncate">{name}</li>
+				<li>
+					<button type="button" onClick={() => void api.signOut().then(() => location.reload())}>
+						Sign out
+					</button>
+				</li>
+			</ul>
+		</Dropdown>
+	);
+}
+
 export function Header({
 	width,
 	connection,
@@ -76,14 +160,7 @@ export function Header({
 					{children}
 					{connection && <Connected state={connection} />}
 					<ThemeToggle />
-					<div className="tooltip tooltip-left" data-tip="You are anonymous here">
-						<div className="avatar avatar-placeholder">
-							<div className="bg-base-200 text-base-content w-8 rounded-full">
-								<Anonymous className="size-4" />
-								<span className="sr-only">You are anonymous here</span>
-							</div>
-						</div>
-					</div>
+					<Account />
 				</div>
 			</div>
 		</header>

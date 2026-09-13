@@ -4,9 +4,10 @@
 	"private": true,
 	"scripts": {
 		"dev": "vite dev",
+		"migrate": "wrangler d1 migrations apply DB --local",
 		"build": "vite build",
 		"preview": "vite preview",
-		"deploy": "scripts/require-env.sh CLOUDFLARE_ACCOUNT_ID && vite build && wrangler deploy",
+		"deploy": "scripts/require-env.sh CLOUDFLARE_ACCOUNT_ID && vite build && wrangler deploy && wrangler d1 migrations apply DB --remote",
 		"cf-typegen": "wrangler types",
 		"typecheck": "tsc --noEmit && tsc --noEmit -p src/client",
 		"format": "biome format --write .",
@@ -16,7 +17,7 @@
 		"load": "scripts/require-env.sh BASE_URL && load/cleanup.sh scratch-read-write && ROOM=scratch-read-write k6 run --quiet load/audience.js",
 		"load:read": "scripts/require-env.sh BASE_URL && load/cleanup.sh scratch-read && ROOM=scratch-read VOTES_PER_SECOND=0 QUESTIONS_PER_SECOND=0 RAMP=15s k6 run --quiet load/audience.js",
 		"load:write": "scripts/require-env.sh BASE_URL && load/cleanup.sh scratch-write && ROOM=scratch-write READERS=0 k6 run --quiet load/audience.js",
-		"load:switch": "scripts/require-env.sh BASE_URL MODERATOR_TOKEN && node load/switch.mjs",
+		"load:switch": "scripts/require-env.sh BASE_URL SESSION_SECRET USER_ID && node load/switch.mjs",
 		"load:clean": "scripts/require-env.sh BASE_URL && load/cleanup.sh scratch-read-write scratch-read scratch-write scratch-switch"
 	},
 	"devDependencies": {
@@ -40,6 +41,7 @@
 	"description": "Self-hosted live Q&A for conferences, with built-in translation",
 	"packageManager": "pnpm@12.4.1+sha512.2e81e399d73fe8390dab25e06aa788ab7a5908248d2f5a370f82b481147a6a7a367bf8048f9a6fdb6460f21a66f0542dedb8b94ca2c8723596741920b1656d4c",
 	"dependencies": {
+		"@hono/oauth-providers": "^0.9.0",
 		"@paulmillr/qr": "^0.3.0",
 		"hono": "^4.13.7",
 		"react": "^19.3.0",

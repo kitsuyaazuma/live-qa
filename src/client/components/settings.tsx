@@ -14,14 +14,12 @@ const SHOWN: Record<TranslationShown, { label: string; said: string }> = {
 export function Settings({
 	roomId,
 	room,
-	token,
 	shown,
 	onShown,
 	fromStage = false,
 }: {
 	roomId: string;
 	room: StreamState;
-	token: string;
 	shown: TranslationShown;
 	onShown: (shown: TranslationShown) => void;
 	/** The stage has no other way to the admin, so it gets one here. */
@@ -64,9 +62,7 @@ export function Settings({
 						className="toggle"
 						checked={room.moderated}
 						disabled={busy}
-						onChange={(event) =>
-							void change(() => api.setModeration(roomId, event.target.checked, token))
-						}
+						onChange={(event) => void change(() => api.setModeration(roomId, event.target.checked))}
 					/>
 				</label>
 				<fieldset className="fieldset gap-1 p-0" disabled={!room.translates}>

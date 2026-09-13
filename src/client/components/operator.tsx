@@ -1,28 +1,42 @@
-import { type ReactNode, useState } from 'react';
-import { operatorToken, rememberOperatorToken } from '../storage';
+import type { ReactNode } from 'react';
+import { useMe } from '../use-me';
 import { type StreamState, useStream } from '../use-stream';
-import { TokenGate } from './token-gate';
+import { Page } from './page';
+import { SignIn } from './sign-in';
 
 export function Operator({
 	roomId,
 	children,
 }: {
 	roomId: string;
-	children: (room: StreamState, token: string) => ReactNode;
+	children: (room: StreamState) => ReactNode;
 }) {
-	const [token, setToken] = useState(operatorToken);
-	const room = useStream(roomId, token);
+	const me = useMe();
+	const room = useStream(roomId, me?.admin === true);
 
-	if (!token || room.connection === 'denied') {
+	if (me === undefined) {
 		return (
-			<TokenGate
-				rejected={room.connection === 'denied'}
-				onToken={(value) => {
-					rememberOperatorToken(value);
-					setToken(value);
-				}}
-			/>
+			<Page width="max-w-sm">
+				<span className="loading loading-spinner mx-auto my-10" />
+			</Page>
 		);
 	}
-	return <>{children(room, token)}</>;
+	if (me === null) {
+		return (
+			<Page width="max-w-sm">
+				<SignIn next={location.pathname} reason="Running a room takes an account." />
+			</Page>
+		);
+	}
+	if (!me.admin) {
+		return (
+			<Page width="max-w-sm">
+				<p className="py-6">
+					Signed in as <span className="font-medium">{me.account.name}</span>, who is not an
+					operator of this room.
+				</p>
+			</Page>
+		);
+	}
+	return <>{children(room)}</>;
 }

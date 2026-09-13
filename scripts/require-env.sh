@@ -12,8 +12,12 @@ for name in "$@"; do
 		printf '    pnpm exec wrangler whoami         # the accounts this login can reach\n' >&2
 		printf '    export CLOUDFLARE_ACCOUNT_ID=...  # the one you mean to deploy to\n' >&2
 		;;
-	MODERATOR_TOKEN)
-		printf '    export MODERATOR_TOKEN=...            # the token this deployment was given\n' >&2
+	SESSION_SECRET)
+		printf '    export SESSION_SECRET=...             # the secret the deployment signs sessions with\n' >&2
+		;;
+	USER_ID)
+		printf '    pnpm exec wrangler d1 execute DB --remote --command "SELECT id, email FROM users"\n' >&2
+		printf '    export USER_ID=...                    # an admin account id from that list\n' >&2
 		;;
 	BASE_URL)
 		printf '    pnpm run deploy                   # prints the url\n' >&2

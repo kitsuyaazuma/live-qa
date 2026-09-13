@@ -11,6 +11,13 @@ TRANSLATION_CONTEXT="Event: Platform Engineering Kaigi 2026\nTalk: Architecting 
 
 # TRANSLATION_MODEL="@cf/qwen/qwen3.8-27b"
 
-# Shared bearer token for the moderator routes; absent disables them.
-# In production: wrangler secret put MODERATOR_TOKEN
-MODERATOR_TOKEN=""
+# Signing in. Register one OAuth app per provider with the callback
+#   <origin>/auth/google  and  <origin>/auth/github
+# (for local work, http://localhost:5173/auth/google and /auth/github).
+# In production: wrangler secret put <NAME> for each of these.
+SESSION_SECRET=""
+ADMIN_EMAILS=""
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""

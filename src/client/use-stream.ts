@@ -25,11 +25,11 @@ const EMPTY: StreamState = {
 	connection: 'opening',
 };
 
-export function useStream(roomId: string, token: string): StreamState {
+export function useStream(roomId: string, enabled: boolean): StreamState {
 	const [state, setState] = useState<StreamState>(EMPTY);
 
 	useEffect(() => {
-		if (!token) return;
+		if (!enabled) return;
 
 		const rows = new Map<string, Question>();
 		let stopped = false;
@@ -43,7 +43,7 @@ export function useStream(roomId: string, token: string): StreamState {
 				try {
 					const response = await fetch(
 						`/api/rooms/${encodeURIComponent(roomId)}/moderator/events?since=${since}`,
-						{ headers: { authorization: `Bearer ${token}` }, signal: controller.signal },
+						{ signal: controller.signal },
 					);
 					if (response.status === 401 || response.status === 403) {
 						setState((current) => ({ ...current, connection: 'denied' }));
@@ -91,7 +91,7 @@ export function useStream(roomId: string, token: string): StreamState {
 		return () => {
 			stopped = true;
 		};
-	}, [roomId, token]);
+	}, [roomId, enabled]);
 
 	return state;
 }

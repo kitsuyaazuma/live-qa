@@ -47,15 +47,6 @@ export function remember(roomId: string, kind: Remembered, id: string, keep: boo
 	return ids;
 }
 
-/** One deployment, one moderator token, so it is not kept per room. */
-export function operatorToken(): string {
-	return read('live-qa.token') ?? '';
-}
-
-export function rememberOperatorToken(token: string): void {
-	write('live-qa.token', token);
-}
-
 export function translationShown(): 'headline' | 'full' | 'none' {
 	const stored = read('live-qa.shown');
 	return stored === 'full' || stored === 'none' ? stored : 'headline';

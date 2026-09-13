@@ -21,6 +21,16 @@
 			}
 		]
 	},
+	// No database_id, so this file works on any account: the first deploy creates
+	// a database of this name and later ones find it by name. Locally the name is
+	// the database's id as well, shared by vite dev and wrangler d1 --local.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "live-qa",
+			"migrations_dir": "migrations"
+		}
+	],
 	"ai": {
 		"binding": "AI",
 		"remote": true

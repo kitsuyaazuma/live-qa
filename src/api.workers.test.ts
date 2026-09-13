@@ -1,9 +1,27 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env, exports } from 'cloudflare:workers';
-import { describe, expect, it, vi } from 'vitest';
+import { serializeSigned } from 'hono/utils/cookie';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { signIn } from './accounts';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
-const TOKEN = { authorization: 'Bearer test-token' };
+/** A session for an account that exists, signed the way the worker signs. */
+async function sessionFor(email: string): Promise<Record<string, string>> {
+	const account = await signIn(env.DB, {
+		provider: 'google',
+		providerId: email,
+		email,
+		name: email.split('@')[0] ?? email,
+		avatar: null,
+	});
+	const cookie = await serializeSigned('session', account.id, 'test-secret');
+	return { cookie: cookie.split(';')[0] ?? '' };
+}
+
+let ADMIN: Record<string, string> = {};
+beforeAll(async () => {
+	ADMIN = await sessionFor('admin@example.com');
+});
 
 function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
@@ -178,27 +196,57 @@ describe('what the edge turns away', () => {
 	});
 });
 
+describe('signing in', () => {
+	it('turns a provider away until it has been configured', async () => {
+		const google = await call('/auth/google?next=/r/keynote/admin');
+
+		expect(google.status).toBe(503);
+		expect(google.headers.get('set-cookie')).toContain('return-to=%2Fr%2Fkeynote%2Fadmin');
+	});
+
+	it('signs out without remembering where to come back to', async () => {
+		const out = await call('/auth/logout', { method: 'POST' });
+
+		expect(out.status).toBe(204);
+		expect(out.headers.get('set-cookie')).not.toContain('return-to');
+	});
+});
+
 describe('moderator api', () => {
-	it('refuses a request without the token', async () => {
+	it('turns away someone not signed in, and someone who is but is no admin', async () => {
 		const anonymous = await call('/api/rooms/gate/moderator/questions');
-		const wrong = await call('/api/rooms/gate/moderator/questions', {
-			headers: { authorization: 'Bearer wrong' },
+		const visitor = await call('/api/rooms/gate/moderator/questions', {
+			headers: await sessionFor('visitor@example.com'),
+		});
+		const forged = await call('/api/rooms/gate/moderator/questions', {
+			headers: { cookie: 'session=someone.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
 		});
 
-		expect([anonymous.status, wrong.status]).toEqual([401, 401]);
+		expect([anonymous.status, visitor.status, forged.status]).toEqual([401, 403, 401]);
+	});
+
+	it('tells a browser who it is', async () => {
+		const nobody = await call('/api/me');
+		const admin = await call('/api/me', { headers: ADMIN });
+
+		expect(nobody.status).toBe(401);
+		expect(await admin.json()).toMatchObject({
+			admin: true,
+			account: { email: 'admin@example.com' },
+		});
 	});
 
 	it('shows pending questions only to the moderator', async () => {
 		await call('/api/rooms/hidden/moderator/moderation', {
 			method: 'PUT',
-			headers: TOKEN,
+			headers: ADMIN,
 			body: JSON.stringify({ enabled: true }),
 		});
 		await post('hidden', 'q1');
 
 		const audience = (await read('hidden').then((r) => r.json())) as { questions: unknown[] };
 		const moderator = (await call('/api/rooms/hidden/moderator/questions', {
-			headers: TOKEN,
+			headers: ADMIN,
 		}).then((r) => r.json())) as { questions: unknown[] };
 
 		expect(audience.questions).toEqual([]);
@@ -210,12 +258,12 @@ describe('moderator api', () => {
 
 		const garbage = await call('/api/rooms/badstatus/moderator/questions/q1', {
 			method: 'PATCH',
-			headers: TOKEN,
+			headers: ADMIN,
 			body: JSON.stringify({ status: 'nonsense' }),
 		});
 		const backwards = await call('/api/rooms/badstatus/moderator/questions/q1', {
 			method: 'PATCH',
-			headers: TOKEN,
+			headers: ADMIN,
 			body: JSON.stringify({ status: 'pending' }),
 		});
 
@@ -227,12 +275,12 @@ describe('moderator api', () => {
 
 		const changed = await call('/api/rooms/status/moderator/questions/q1', {
 			method: 'PATCH',
-			headers: TOKEN,
+			headers: ADMIN,
 			body: JSON.stringify({ status: 'answering' }),
 		});
 		const missing = await call('/api/rooms/status/moderator/questions/nope', {
 			method: 'PATCH',
-			headers: TOKEN,
+			headers: ADMIN,
 			body: JSON.stringify({ status: 'answering' }),
 		});
 
@@ -272,7 +320,7 @@ describe('disposable rooms', () => {
 		const wiped = await wipe('scratch-2');
 
 		expect(wiped.status).toBe(200);
-		const after = await call('/api/rooms/scratch-2/moderator/questions', { headers: TOKEN }).then(
+		const after = await call('/api/rooms/scratch-2/moderator/questions', { headers: ADMIN }).then(
 			(r) => r.json() as Promise<{ version: number; questions: unknown[] }>,
 		);
 		expect(after).toMatchObject({ version: 0, questions: [] });
@@ -299,7 +347,7 @@ async function pushed(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<
 
 function events(roomId: string, since?: number) {
 	const query = since === undefined ? '' : `?since=${since}`;
-	return call(`/api/rooms/${roomId}/moderator/events${query}`, { headers: TOKEN });
+	return call(`/api/rooms/${roomId}/moderator/events${query}`, { headers: ADMIN });
 }
 
 describe('operator stream', () => {
@@ -341,7 +389,7 @@ describe('operator stream', () => {
 		expect(statuses.filter((status) => status === 503)).toHaveLength(1);
 	});
 
-	it('refuses a stream without the token', async () => {
+	it('refuses a stream to someone not signed in', async () => {
 		const anonymous = await call('/api/rooms/stream/moderator/events');
 
 		expect(anonymous.status).toBe(401);

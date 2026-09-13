@@ -32,16 +32,12 @@ function Address({ link }: { link: string }) {
 }
 
 export default function Present({ roomId }: { roomId: string }) {
-	return (
-		<Operator roomId={roomId}>
-			{(room, token) => <Stage roomId={roomId} room={room} token={token} />}
-		</Operator>
-	);
+	return <Operator roomId={roomId}>{(room) => <Stage roomId={roomId} room={room} />}</Operator>;
 }
 
 /** Pinned to the brand theme by a checked controller; with no header here,
  * nothing competes with it. */
-function Stage({ roomId, room, token }: { roomId: string; room: StreamState; token: string }) {
+function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 	const list = useRef<HTMLOListElement>(null);
 	const [shown, setShown] = useTranslationShown();
 	const listed = room.questions
@@ -63,14 +59,7 @@ function Stage({ roomId, room, token }: { roomId: string; room: StreamState; tok
 			/>
 			<div className="absolute bottom-4 left-4 z-10 flex gap-1">
 				<Fullscreen />
-				<Settings
-					roomId={roomId}
-					room={room}
-					token={token}
-					shown={shown}
-					onShown={setShown}
-					fromStage
-				/>
+				<Settings roomId={roomId} room={room} shown={shown} onShown={setShown} fromStage />
 			</div>
 
 			<div className="grid min-h-dvh gap-8 p-6 lg:grid-cols-[minmax(16rem,26%)_1fr] lg:gap-12 lg:p-10">
@@ -100,9 +89,7 @@ function Stage({ roomId, room, token }: { roomId: string; room: StreamState; tok
 									translates={room.translates}
 									shown={shown}
 									big
-									onMove={(to) =>
-										void api.setStatus(roomId, question.id, to, token).catch(() => {})
-									}
+									onMove={(to) => void api.setStatus(roomId, question.id, to).catch(() => {})}
 								/>
 							))}
 						</ol>

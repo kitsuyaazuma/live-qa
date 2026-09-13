@@ -63,7 +63,7 @@ afterEach(() => {
 
 describe('useStream', () => {
 	it('holds every question it has been told about, not just the last frame', async () => {
-		const { result } = renderHook(() => useStream('keynote', 'token'));
+		const { result } = renderHook(() => useStream('keynote', true));
 		await settle();
 
 		await act(async () => {
@@ -79,7 +79,7 @@ describe('useStream', () => {
 	});
 
 	it('replaces a question the room has changed', async () => {
-		const { result } = renderHook(() => useStream('keynote', 'token'));
+		const { result } = renderHook(() => useStream('keynote', true));
 		await settle();
 
 		await act(async () => {
@@ -94,7 +94,7 @@ describe('useStream', () => {
 	});
 
 	it('steps over the heartbeats', async () => {
-		const { result } = renderHook(() => useStream('keynote', 'token'));
+		const { result } = renderHook(() => useStream('keynote', true));
 		await settle();
 
 		await act(async () => {
@@ -106,7 +106,7 @@ describe('useStream', () => {
 	});
 
 	it('forgets what it holds when the room comes back at a lower version', async () => {
-		const { result } = renderHook(() => useStream('keynote', 'token'));
+		const { result } = renderHook(() => useStream('keynote', true));
 		await settle();
 		await act(async () => {
 			push(frame(diff(4, [question({ id: 'old' })])));
@@ -120,7 +120,7 @@ describe('useStream', () => {
 	});
 
 	it('asks again from where it stopped when the stream drops', async () => {
-		renderHook(() => useStream('keynote', 'token'));
+		renderHook(() => useStream('keynote', true));
 		await settle();
 		await act(async () => {
 			push(frame(diff(7, [question()])));
@@ -135,9 +135,9 @@ describe('useStream', () => {
 		expect(asked[1]).toContain('since=7');
 	});
 
-	it('says it is not allowed rather than trying the same token again', async () => {
+	it('says it is not allowed rather than asking again', async () => {
 		status = 401;
-		const { result } = renderHook(() => useStream('keynote', 'wrong'));
+		const { result } = renderHook(() => useStream('keynote', true));
 
 		await settle(20000);
 

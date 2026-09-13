@@ -1,5 +1,18 @@
+import { githubAuth } from '@hono/oauth-providers/github';
+import { googleAuth } from '@hono/oauth-providers/google';
 import { Hono } from 'hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
+import { type Profile, signIn } from './accounts';
+import {
+	type Ctx,
+	currentAccount,
+	endSession,
+	isAdmin,
+	issueSession,
+	safePath,
+	sessionSecret,
+} from './auth';
 import { roomLocationFromEnv } from './config';
 import { requireId, requireTarget, requireText } from './protocol';
 
@@ -134,19 +147,99 @@ api.get('/api/rooms/:roomId/questions', async (c) => {
 /** The prefix is the only guard, so a room an audience uses is out of reach. */
 const SCRATCH_PREFIX = 'scratch-';
 
-/** Placeholder gates, not an authentication system: one shared bearer each. */
-function bearerMatches(offered: string | undefined, expected: string): boolean {
-	const a = new TextEncoder().encode(offered?.replace(/^Bearer /, '') ?? '');
-	const b = new TextEncoder().encode(expected);
-	return a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
+/** Where to send someone back to after the provider; carried in a cookie
+ * because the provider hands back only its own parameters. */
+const RETURN_TO = 'return-to';
+
+api.use('/auth/:provider{google|github}', async (c, next) => {
+	if (!c.req.query('code')) {
+		setCookie(c, RETURN_TO, safePath(c.req.query('next')), {
+			path: '/auth',
+			httpOnly: true,
+			sameSite: 'Lax',
+			maxAge: 600,
+		});
+	}
+	return next();
+});
+
+api.use('/auth/google', async (c, next) => {
+	const { GOOGLE_CLIENT_ID: id, GOOGLE_CLIENT_SECRET: secret } = c.env;
+	if (!id || !secret || !sessionSecret(c.env)) {
+		return c.json({ error: 'signing in with Google is not configured' }, 503);
+	}
+	return googleAuth({
+		client_id: id,
+		client_secret: secret,
+		scope: ['openid', 'email', 'profile'],
+		redirect_uri: `${new URL(c.req.url).origin}/auth/google`,
+	})(c, next);
+});
+
+api.use('/auth/github', async (c, next) => {
+	const { GITHUB_CLIENT_ID: id, GITHUB_CLIENT_SECRET: secret } = c.env;
+	if (!id || !secret || !sessionSecret(c.env)) {
+		return c.json({ error: 'signing in with GitHub is not configured' }, 503);
+	}
+	return githubAuth({
+		client_id: id,
+		client_secret: secret,
+		scope: ['read:user', 'user:email'],
+		oauthApp: true,
+		redirect_uri: `${new URL(c.req.url).origin}/auth/github`,
+	})(c, next);
+});
+
+async function signedIn(c: Ctx, profile: Profile) {
+	const secret = sessionSecret(c.env);
+	if (!secret) return c.json({ error: 'signing in is not configured' }, 503);
+	const account = await signIn(c.env.DB, profile);
+	await issueSession(c, secret, account.id);
+	const to = safePath(getCookie(c, RETURN_TO));
+	deleteCookie(c, RETURN_TO, { path: '/auth' });
+	return c.redirect(to);
 }
 
+api.get('/auth/google', (c) => {
+	const user = c.get('user-google');
+	if (!user?.id) return c.json({ error: 'Google returned no account' }, 502);
+	return signedIn(c, {
+		provider: 'google',
+		providerId: user.id,
+		email: user.email ?? null,
+		name: user.name ?? user.email ?? 'Someone',
+		avatar: user.picture ?? null,
+	});
+});
+
+api.get('/auth/github', (c) => {
+	const user = c.get('user-github');
+	if (user?.id === undefined) return c.json({ error: 'GitHub returned no account' }, 502);
+	return signedIn(c, {
+		provider: 'github',
+		providerId: String(user.id),
+		email: user.email ?? null,
+		name: user.name ?? user.login ?? 'Someone',
+		avatar: user.avatar_url ?? null,
+	});
+});
+
+api.post('/auth/logout', (c) => {
+	endSession(c);
+	return c.body(null, 204);
+});
+
+api.get('/api/me', async (c) => {
+	const account = await currentAccount(c);
+	if (!account) return c.json({ error: 'not signed in' }, 401);
+	return c.json({ account, admin: isAdmin(c.env, account) }, 200, { 'cache-control': 'no-store' });
+});
+
+/** For now the operators of every room are the admins; rooms get their own next. */
 api.use('/api/rooms/:roomId/moderator/*', async (c, next) => {
-	const expected = c.env.MODERATOR_TOKEN?.trim();
-	if (!expected) return c.json({ error: 'moderation is not configured' }, 503);
-	if (!bearerMatches(c.req.header('authorization'), expected)) {
-		return c.json({ error: 'unauthorized' }, 401);
-	}
+	const account = await currentAccount(c);
+	if (!account) return c.json({ error: 'sign in first' }, 401);
+	if (!isAdmin(c.env, account)) return c.json({ error: 'not an operator of this room' }, 403);
 	return next();
 });
 
