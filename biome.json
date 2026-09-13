@@ -3,7 +3,7 @@
 	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!worker-configuration.d.ts", "!.wrangler"]
+		"includes": ["**", "!worker-configuration.d.ts", "!.wrangler", "!branding/**/*.svg"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -28,6 +28,9 @@
 			"attributePosition": "auto",
 			"bracketSpacing": true
 		}
+	},
+	"css": {
+		"parser": { "tailwindDirectives": true }
 	},
 	"html": {
 		"formatter": {

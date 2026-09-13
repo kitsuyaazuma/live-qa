@@ -1,0 +1,12 @@
+/* Scanned from here rather than the repository root: a markdown file full of
+   class names, such as a vendored component guide, lands in the stylesheet. */
+@import "tailwindcss" source('.');
+@import "@branding/theme.css";
+@source "../../index.html";
+
+/* A laptop sits further from the eyes than a phone. */
+@media (min-width: 48rem) {
+	html {
+		font-size: 18px;
+	}
+}

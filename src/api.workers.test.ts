@@ -195,6 +195,15 @@ describe('moderator api', () => {
 	});
 });
 
+describe('the client fallback', () => {
+	it('leaves a mistyped endpoint as not found rather than answering with a page', async () => {
+		const mistyped = await call('/api/rooms/fallback/question');
+
+		expect(mistyped.status).toBe(404);
+		expect(mistyped.headers.get('content-type')).not.toContain('text/html');
+	});
+});
+
 describe('disposable rooms', () => {
 	function wipe(roomId: string) {
 		return call(`/api/rooms/${roomId}`, { method: 'DELETE' });
@@ -222,5 +231,73 @@ describe('disposable rooms', () => {
 		);
 		expect(after).toMatchObject({ version: 0, questions: [] });
 		expect((await post('scratch-2', 'q2')).status).toBe(201);
+	});
+});
+
+/** Reads one pushed payload, stepping over the heartbeat comments. */
+async function pushed(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<unknown> {
+	const decoder = new TextDecoder();
+	let buffered = '';
+	while (true) {
+		const { value, done } = await reader.read();
+		if (done) throw new Error('the stream closed');
+		buffered += decoder.decode(value, { stream: true });
+		const end = buffered.indexOf('\n\n');
+		if (end === -1) continue;
+		const event = buffered.slice(0, end);
+		buffered = buffered.slice(end + 2);
+		const data = event.split('\n').find((line) => line.startsWith('data: '));
+		if (data) return JSON.parse(data.slice(6));
+	}
+}
+
+function events(roomId: string, since?: number) {
+	const query = since === undefined ? '' : `?since=${since}`;
+	return call(`/api/rooms/${roomId}/moderator/events${query}`, { headers: TOKEN });
+}
+
+describe('operator stream', () => {
+	it('opens with the room as it stands and pushes what changes after', async () => {
+		await post('stream', 'q1');
+		const response = await events('stream');
+		const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+
+		const opening = await pushed(reader);
+		await post('stream', 'q2');
+		const change = await pushed(reader);
+		await reader.cancel();
+
+		expect(response.headers.get('content-type')).toBe('text/event-stream');
+		expect(opening).toMatchObject({ version: 1, questions: [{ id: 'q1' }] });
+		// Only the row that moved: the screen is holding the rest already.
+		expect(change).toMatchObject({ version: 2, questions: [{ id: 'q2' }] });
+	});
+
+	it('sends a reconnecting screen only what it missed', async () => {
+		await post('resume', 'q1');
+		await post('resume', 'q2');
+
+		const response = await events('resume', 1);
+		const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+		const opening = await pushed(reader);
+		await reader.cancel();
+
+		expect(opening).toMatchObject({ version: 2, questions: [{ id: 'q2' }] });
+	});
+
+	it('turns away more screens than one room should have', async () => {
+		const opened = await Promise.all(Array.from({ length: 9 }, () => events('crowd')));
+
+		const statuses = opened.map((response) => response.status);
+		await Promise.all(opened.map((response) => response.body?.cancel()));
+
+		expect(statuses.filter((status) => status === 200)).toHaveLength(8);
+		expect(statuses.filter((status) => status === 503)).toHaveLength(1);
+	});
+
+	it('refuses a stream without the token', async () => {
+		const anonymous = await call('/api/rooms/stream/moderator/events');
+
+		expect(anonymous.status).toBe(401);
 	});
 });

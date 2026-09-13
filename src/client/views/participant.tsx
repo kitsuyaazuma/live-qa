@@ -1,0 +1,104 @@
+import { useMemo, useRef, useState } from 'react';
+import type { Question, Status } from '../../protocol';
+import { AskForm } from '../components/ask-form';
+import { BackToTop } from '../components/back-to-top';
+import { Filter, useFilter } from '../components/filter';
+import { Page } from '../components/page';
+import { QuestionCard } from '../components/question-card';
+import { byNewest, byVotes } from '../order';
+import { useNow } from '../time';
+import { useFlip } from '../use-flip';
+import { useRoom } from '../use-room';
+
+type Order = 'popular' | 'recent';
+
+const RANK: Record<Status, number> = {
+	answering: 0,
+	published: 1,
+	pending: 1,
+	answered: 2,
+	dismissed: 3,
+};
+
+function ordered(questions: Question[], order: Order): Question[] {
+	const then = order === 'popular' ? byVotes : byNewest;
+	return [...questions].sort((a, b) => RANK[a.status] - RANK[b.status] || then(a, b));
+}
+
+export function Participant({ roomId }: { roomId: string }) {
+	const room = useRoom(roomId);
+	const [order, setOrder] = useState<Order>('popular');
+	const filter = useFilter(room.asked);
+	const now = useNow();
+	const list = useRef<HTMLUListElement>(null);
+	const questions = useMemo(
+		() => ordered(room.questions.filter(filter.passes), order),
+		[room.questions, order, filter.passes],
+	);
+	useFlip(list);
+
+	return (
+		<Page width="max-w-2xl" connection={room.connection}>
+			<AskForm moderated={room.moderated} onAsk={room.ask} />
+
+			<div className="flex items-center justify-between gap-2">
+				<div role="tablist" className="tabs tabs-border tabs-sm">
+					{(['popular', 'recent'] as const).map((value) => (
+						<button
+							key={value}
+							type="button"
+							role="tab"
+							aria-selected={order === value}
+							className={`tab ${order === value ? 'tab-active' : ''}`}
+							onClick={() => setOrder(value)}
+						>
+							{value === 'popular' ? 'Popular' : 'Recent'}
+						</button>
+					))}
+				</div>
+				<div className="flex items-center gap-2">
+					<span aria-live="polite" className="text-xs tabular-nums opacity-70">
+						{questions.length} {questions.length === 1 ? 'question' : 'questions'}
+					</span>
+					<Filter filter={filter} asked={room.asked.size} />
+				</div>
+			</div>
+
+			{room.connection === 'opening' && questions.length === 0 ? (
+				<div className="flex flex-col gap-2" aria-hidden="true">
+					<div className="skeleton h-20 w-full" />
+					<div className="skeleton h-20 w-full" />
+				</div>
+			) : questions.length === 0 ? (
+				<p className="py-10 text-center opacity-70">No questions yet. Ask the first one.</p>
+			) : (
+				<ul ref={list} aria-label="Questions" className="flex flex-col gap-2">
+					{questions.map((question) => (
+						<QuestionCard
+							key={question.id}
+							question={question}
+							voted={room.voted.has(question.id)}
+							mine={room.asked.has(question.id)}
+							now={now}
+							shown="headline"
+							onVote={() => void room.toggleVote(question.id)}
+						/>
+					))}
+				</ul>
+			)}
+
+			{room.error && (
+				<div className="toast toast-center toast-bottom">
+					<div role="alert" className="alert alert-error">
+						<span>{room.error}</span>
+						<button type="button" className="btn btn-ghost btn-xs" onClick={room.dismissError}>
+							Dismiss
+						</button>
+					</div>
+				</div>
+			)}
+
+			<BackToTop />
+		</Page>
+	);
+}

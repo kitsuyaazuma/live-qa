@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"target": "es2024",
+		"lib": ["es2024", "dom", "dom.iterable"],
+		"jsx": "react-jsx",
+		"module": "es2022",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"types": ["vite/client"],
+		"paths": { "@branding/*": ["../../branding/default/*"] }
+	},
+	"include": ["**/*.ts", "**/*.tsx", "../protocol.ts", "../../branding/default/branding.json"]
+}

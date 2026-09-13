@@ -37,6 +37,12 @@
 		// place it at whichever colo reaches it first.
 		"ROOM_LOCATION_HINT": ""
 	},
+	// The directory is filled in by the vite plugin at build time. A request that
+	// matches no asset reaches the worker, which hands the deep link back here.
+	"assets": {
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application"
+	},
 	"observability": {
 		"enabled": true
 	},

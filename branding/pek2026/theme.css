@@ -1,0 +1,40 @@
+@plugin "daisyui" {
+	themes:
+		light --default,
+		dark --prefersdark;
+}
+
+/*
+ * Your conference's colours, set on both themes so a phone in dark mode is
+ * still in the brand. Only the values you care about need to be here.
+ * Primary carries the question on the stage; secondary is the accent on what
+ * a participant did themselves.
+ * All of them: https://daisyui.com/docs/themes/ and /theme-generator/
+ */
+@plugin "daisyui/theme" {
+	name: "light";
+	default: true;
+
+	--color-primary: #006fb8;
+	--color-primary-content: #ffffff;
+	--color-secondary: #ed951d;
+	--color-secondary-content: #1f1608;
+	--color-accent: #5f5f9d;
+	--color-accent-content: #ffffff;
+	--color-neutral: #f4bd00;
+	--color-neutral-content: #1f1a00;
+}
+
+@plugin "daisyui/theme" {
+	name: "dark";
+	prefersdark: true;
+
+	--color-primary: #006fb8;
+	--color-primary-content: #ffffff;
+	--color-secondary: #ed951d;
+	--color-secondary-content: #1f1608;
+	--color-accent: #5f5f9d;
+	--color-accent-content: #ffffff;
+	--color-neutral: #f4bd00;
+	--color-neutral-content: #1f1a00;
+}

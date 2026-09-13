@@ -1,61 +1,32 @@
 import { DurableObject } from 'cloudflare:workers';
 import { translationSettingsFromEnv } from './config';
+import {
+	type Question,
+	requireId,
+	requireTarget,
+	requireText,
+	type Snapshot,
+	type Status,
+	type StatusResult,
+	type StoredTranslation,
+	type TranslationResult,
+	type VoteResult,
+} from './protocol';
 import { type TranslationSettings, WorkersAiTranslator } from './translate';
 
-export const STATUSES = ['pending', 'published', 'answering', 'answered', 'dismissed'] as const;
-
-export type Status = (typeof STATUSES)[number];
-
-/** Null, on `Question`, means nothing has tried to translate it yet. */
-export type StoredTranslation =
-	| { ok: true; headline: string | null; full: string }
-	| { ok: false; error: string; attempts: number };
-
-export interface Question {
-	id: string;
-	text: string;
-	translation: StoredTranslation | null;
-	votes: number;
-	status: Status;
-	version: number;
-	createdAt: number;
-}
-
 export type SnapshotView = 'audience' | 'moderator';
-
-export interface Snapshot {
-	version: number;
-	moderated: boolean;
-	questions: Question[];
-}
-
-/**
- * A stale client is expected, so a missing question is a result, not a throw:
- * workerd logs thrown RPC errors as uncaught exceptions. The version rides along
- * so the client can re-fetch from where it actually is.
- */
-type UnknownQuestion = { status: 'unknown-question'; version: number };
-
-export type VoteResult =
-	| { status: 'changed' | 'unchanged'; version: number; votes: number }
-	| UnknownQuestion;
-
-export type StatusResult =
-	| { status: 'changed' | 'unchanged'; version: number; question: Question }
-	| UnknownQuestion;
-
-export type TranslationResult =
-	| { status: 'applied'; version: number; question: Question }
-	| UnknownQuestion;
 
 /** Workers AI allows three hundred text generations a minute per account. */
 const TRANSLATION_BATCH = 5;
 const TRANSLATION_DELAY_MS = 1000;
 const TRANSLATION_ATTEMPTS_MAX = 3;
 
-/** Bounds what one room can be made to store; the display caps live elsewhere. */
-const TEXT_MAX = 2000;
-const ID_MAX = 64;
+/** Operator screens, and a leak rather than an audience past that. */
+const STREAMS_MAX = 8;
+
+/** Short enough that no proxy decides an idle stream has died, and it doubles
+ * as the reaper: a screen that closed is noticed on the next failed write. */
+const HEARTBEAT_MS = 15000;
 
 const COLUMNS = 'id, text, translation, votes, status, version, created_at';
 
@@ -120,6 +91,14 @@ function parseTranslation(raw: string | null): StoredTranslation | null {
 	}
 }
 
+const encoder = new TextEncoder();
+
+type Stream = WritableStreamDefaultWriter<Uint8Array>;
+
+function frame(version: number, diff: Snapshot): Uint8Array {
+	return encoder.encode(`id: ${version}\ndata: ${JSON.stringify(diff)}\n\n`);
+}
+
 function toQuestion(row: QuestionRow): Question {
 	return {
 		id: row.id,
@@ -132,41 +111,21 @@ function toQuestion(row: QuestionRow): Question {
 	};
 }
 
-export function requireId(value: string, field: string): string {
-	if (value.length === 0 || value.length > ID_MAX) {
-		throw new Error(`${field} must be 1 to ${ID_MAX} characters`);
-	}
-	return value;
-}
-
-export function requireText(value: string): string {
-	const text = value.trim();
-	if (text.length === 0 || text.length > TEXT_MAX) {
-		throw new Error(`text must be 1 to ${TEXT_MAX} characters after trimming`);
-	}
-	return text;
-}
-
-/** Nothing returns to `pending`: a reviewed question must not become unreviewed. */
-export function requireTarget(value: string): Exclude<Status, 'pending'> {
-	if (value === 'pending' || !(STATUSES as readonly string[]).includes(value)) {
-		throw new Error(`status must be one of: ${STATUSES.slice(1).join(', ')}`);
-	}
-	return value as Exclude<Status, 'pending'>;
-}
-
 /** One instance per Q&A room, addressed by room id. */
 export class Room extends DurableObject<Env> {
 	private version = 0;
 	private moderated = false;
+	private readonly streams = new Set<Stream>();
+	private beat: ReturnType<typeof setInterval> | undefined;
 	private readonly translation: TranslationSettings | null;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.translation = translationSettingsFromEnv(env);
 		ctx.blockConcurrencyWhile(async () => {
-			ctx.storage.sql.exec(SCHEMA);
-			const row = ctx.storage.sql
+			const sql = ctx.storage.sql;
+			sql.exec(SCHEMA);
+			const row = sql
 				.exec<{ version: number; moderated: number }>(
 					'SELECT version, moderated FROM room WHERE id = 1',
 				)
@@ -349,32 +308,23 @@ export class Room extends DurableObject<Env> {
 		return { version: this.version, moderated: this.moderated };
 	}
 
-	/**
-	 * `view` is required because a default is a thing to forget, and forgetting it
-	 * on the audience route would put dismissed text on every screen. Dismissed
-	 * questions are blanked rather than dropped, so the diff can still tell a
-	 * client to take one off screen; pending ones are dropped outright, which is
-	 * safe only because nothing returns to `pending`.
-	 *
-	 * `moderated` changes no row, so it rides in the payload, not the diff.
-	 */
+	/** `view` is required because a default is a thing to forget, and forgetting
+	 * it on the audience route would put dismissed text on every screen. */
 	async snapshot(input: { view: SnapshotView; since?: number }): Promise<Snapshot> {
-		const audience = input.view === 'audience';
-		const rows = this.ctx.storage.sql
-			.exec<QuestionRow>(
-				`SELECT ${COLUMNS} FROM questions
-				 WHERE version > ?${audience ? ` AND status != 'pending'` : ''}
-				 ORDER BY version`,
-				input.since ?? 0,
-			)
-			.toArray();
+		return this.project(input.view, input.since ?? 0);
+	}
 
-		const questions = rows.map((row) => {
-			const question = toQuestion(row);
-			return audience && question.status === 'dismissed' ? withoutContent(question) : question;
-		});
+	/** Null past the cap: a thousand streams on one object is what the cached read exists to avoid. */
+	async subscribe(since: number): Promise<ReadableStream | null> {
+		if (this.streams.size >= STREAMS_MAX) return null;
 
-		return { version: this.version, moderated: this.moderated, questions };
+		const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+		const writer = writable.getWriter();
+		this.streams.add(writer);
+		this.beat ??= setInterval(() => this.each(encoder.encode(': beat\n\n')), HEARTBEAT_MS);
+		this.send(writer, frame(this.version, this.project('moderator', since)));
+
+		return readable;
 	}
 
 	/** `deleteAll` because internal metadata survives selective deletion. */
@@ -383,12 +333,64 @@ export class Room extends DurableObject<Env> {
 		this.ctx.storage.sql.exec(SCHEMA);
 		this.version = 0;
 		this.moderated = false;
+		// A screen cannot be told to forget in a diff, so it is made to reconnect.
+		for (const writer of this.streams) void writer.close().catch(() => {});
+		this.streams.clear();
 	}
 
 	/** Runs with no await since the last write, so the room row lands atomically. */
 	private commit(version: number): void {
 		this.ctx.storage.sql.exec('UPDATE room SET version = ? WHERE id = 1', version);
 		this.version = version;
+		// Only the rows this version touched: a screen holds the rest already.
+		if (this.streams.size > 0) this.each(frame(version, this.project('moderator', version - 1)));
+	}
+
+	private each(bytes: Uint8Array): void {
+		for (const writer of this.streams) this.send(writer, bytes);
+	}
+
+	/** Not awaited: a commit must reach the room row with no await in between,
+	 * and a screen that has closed must not hold up the room. */
+	private send(writer: Stream, bytes: Uint8Array): void {
+		writer.write(bytes).catch(() => {
+			this.streams.delete(writer);
+			if (this.streams.size === 0) {
+				clearInterval(this.beat);
+				this.beat = undefined;
+			}
+		});
+	}
+
+	/**
+	 * Dismissed questions are blanked rather than dropped, so a diff can still
+	 * tell a screen to take one down; pending ones are dropped outright from the
+	 * audience view, which is safe only because nothing returns to `pending`.
+	 *
+	 * `moderated` changes no row, so it rides in the payload, not the diff.
+	 */
+	private project(view: SnapshotView, since: number): Snapshot {
+		const audience = view === 'audience';
+		const rows = this.ctx.storage.sql
+			.exec<QuestionRow>(
+				`SELECT ${COLUMNS} FROM questions
+				 WHERE version > ?${audience ? ` AND status != 'pending'` : ''}
+				 ORDER BY version`,
+				since,
+			)
+			.toArray();
+
+		const questions = rows.map((row) => {
+			const question = toQuestion(row);
+			return audience && question.status === 'dismissed' ? withoutContent(question) : question;
+		});
+
+		return {
+			version: this.version,
+			moderated: this.moderated,
+			translates: this.translation !== null,
+			questions,
+		};
 	}
 
 	private exists(id: string): boolean {

@@ -1,0 +1,12 @@
+@plugin "daisyui" {
+	themes:
+		light --default,
+		dark --prefersdark;
+}
+
+/*
+ * The plain look. A conference gets its own folder next to this one and picks
+ * it with BRANDING=<folder> at build time; branding/pek2026 is a worked example
+ * of colours set on both themes so a phone in dark mode is still in the brand.
+ * All the variables: https://daisyui.com/docs/themes/ and /theme-generator/
+ */

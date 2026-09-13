@@ -12,6 +12,9 @@ for name in "$@"; do
 		printf '    pnpm exec wrangler whoami         # the accounts this login can reach\n' >&2
 		printf '    export CLOUDFLARE_ACCOUNT_ID=...  # the one you mean to deploy to\n' >&2
 		;;
+	MODERATOR_TOKEN)
+		printf '    export MODERATOR_TOKEN=...            # the token this deployment was given\n' >&2
+		;;
 	BASE_URL)
 		printf '    pnpm run deploy                   # prints the url\n' >&2
 		printf '    export BASE_URL=https://...       # that url\n' >&2

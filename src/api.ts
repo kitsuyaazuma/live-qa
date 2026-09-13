@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { roomLocationFromEnv } from './config';
-import { requireId, requireTarget, requireText } from './room';
+import { requireId, requireTarget, requireText } from './protocol';
 
 /**
  * One room is one object, saturating near a thousand requests a second, so the
@@ -135,12 +135,33 @@ api.delete('/api/rooms/:roomId', async (c) => {
 	return c.json({ reset: roomId });
 });
 
-api.get('/api/rooms/:roomId/moderator/questions', async (c) => {
-	const since = Number(c.req.query('since') ?? 0);
-	if (!Number.isInteger(since) || since < 0) fail(new Error('since must be a whole number'));
+function whole(value: string | undefined): number {
+	const parsed = Number(value ?? 0);
+	if (!Number.isInteger(parsed) || parsed < 0) fail(new Error('since must be a whole number'));
+	return parsed;
+}
 
-	const snapshot = await room(c.env, c.req.param('roomId')).snapshot({ view: 'moderator', since });
+api.get('/api/rooms/:roomId/moderator/questions', async (c) => {
+	const snapshot = await room(c.env, c.req.param('roomId')).snapshot({
+		view: 'moderator',
+		since: whole(c.req.query('since')),
+	});
 	return c.json(snapshot, 200, { 'cache-control': 'no-store' });
+});
+
+/** Operator screens only: a stream per phone would put the audience back on the object. */
+api.get('/api/rooms/:roomId/moderator/events', async (c) => {
+	const stream = await room(c.env, c.req.param('roomId')).subscribe(whole(c.req.query('since')));
+	if (!stream) return c.json({ error: 'this room already has enough live screens' }, 503);
+
+	return new Response(stream, {
+		headers: {
+			'content-type': 'text/event-stream',
+			'cache-control': 'no-store',
+			// Nothing in the path should hold a frame back waiting for more.
+			'x-accel-buffering': 'no',
+		},
+	});
 });
 
 api.patch('/api/rooms/:roomId/moderator/questions/:questionId', async (c) => {
@@ -159,3 +180,10 @@ api.put('/api/rooms/:roomId/moderator/moderation', async (c) => {
 	);
 	return c.json(result);
 });
+
+/** A deep link such as /r/keynote matches no file, so the asset router's
+ * fallback is asked for. The api declines it, or a mistyped endpoint would
+ * answer a fetch with a page. */
+api.get('*', (c) =>
+	c.req.path.startsWith('/api/') ? c.notFound() : c.env.ASSETS.fetch(c.req.raw),
+);
