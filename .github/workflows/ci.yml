@@ -28,11 +28,21 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Biome
-        run: pnpm exec biome ci .
+      # Read-only checks side by side; the two builds share dist/ and stay in order.
+      - parallel:
+          - name: Format/Lint
+            run: pnpm exec biome ci .
 
-      - name: TypeScript
-        run: pnpm run typecheck
+          - name: Typecheck
+            run: pnpm run typecheck
 
-      - name: Vitest
-        run: pnpm test
+          - name: Test
+            run: pnpm test
+
+      - name: Build (default)
+        run: pnpm run build
+
+      - name: Build (pek2026)
+        run: pnpm run build
+        env:
+          BRANDING: pek2026
