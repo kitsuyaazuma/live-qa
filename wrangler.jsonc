@@ -25,6 +25,12 @@
 		"binding": "AI",
 		"remote": true
 	},
+	// Per client address and per colo. A hall behind one NAT is one address, so
+	// these only bound what a script from one machine can do, not what a person can.
+	"ratelimits": [
+		{ "name": "ASK_LIMIT", "namespace_id": "1001", "simple": { "limit": 50, "period": 10 } },
+		{ "name": "VOTE_LIMIT", "namespace_id": "1002", "simple": { "limit": 500, "period": 10 } }
+	],
 	"vars": {
 		// Empty leaves questions untranslated.
 		"TRANSLATION_MODEL": "@cf/google/gemma-4-26b-a4b-it",

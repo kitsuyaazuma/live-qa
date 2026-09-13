@@ -1,4 +1,5 @@
-import { exports } from 'cloudflare:workers';
+import { runInDurableObject } from 'cloudflare:test';
+import { env, exports } from 'cloudflare:workers';
 import { describe, expect, it, vi } from 'vitest';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
@@ -8,9 +9,11 @@ function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
 }
 
+/** The edge limit is keyed on the address, so each room here is its own. */
 function post(roomId: string, id: string, text = TEXT) {
 	return call(`/api/rooms/${roomId}/questions`, {
 		method: 'POST',
+		headers: { 'cf-connecting-ip': roomId },
 		body: JSON.stringify({ id, text }),
 	});
 }
@@ -129,6 +132,49 @@ describe('questions api', () => {
 
 		expect([ok.status, missing.status]).toEqual([200, 404]);
 		expect(await ok.json()).toMatchObject({ status: 'changed', votes: 1 });
+	});
+});
+
+describe('what the edge turns away', () => {
+	it('refuses a body larger than any question', async () => {
+		const bloated = await call('/api/rooms/bloat/questions', {
+			method: 'POST',
+			body: JSON.stringify({ id: 'q1', text: 'x'.repeat(20_000) }),
+		});
+
+		expect(bloated.status).toBe(413);
+	});
+
+	it('holds one address to a trickle of questions', async () => {
+		const from = { 'cf-connecting-ip': '203.0.113.9' };
+		const statuses: number[] = [];
+		for (let i = 0; i < 51; i += 1) {
+			const response = await call('/api/rooms/trickle/questions', {
+				method: 'POST',
+				headers: from,
+				body: JSON.stringify({ id: `q${i}`, text: TEXT }),
+			});
+			statuses.push(response.status);
+		}
+
+		expect(statuses.slice(0, 50).every((status) => status === 201)).toBe(true);
+		expect(statuses[50]).toBe(429);
+	});
+
+	it('says a room is full instead of storing more, and still takes a retry', async () => {
+		await post('packed', 'kept');
+		await runInDurableObject(env.ROOM.getByName('packed'), (_instance, state) => {
+			state.storage.sql.exec(`
+				INSERT INTO questions (id, text, status, version, created_at)
+				WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 2000)
+				SELECT 'fill-' || i, 'x', 'published', 1, 0 FROM n`);
+		});
+
+		const refused = await post('packed', 'one-more');
+		const retried = await post('packed', 'kept');
+
+		expect(refused.status).toBe(409);
+		expect(retried.status).toBe(200);
 	});
 });
 

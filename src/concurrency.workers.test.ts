@@ -16,9 +16,11 @@ function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
 }
 
+/** The edge limit is keyed on the address, so each room here is its own. */
 function post(roomId: string, id: string) {
 	return call(`/api/rooms/${roomId}/questions`, {
 		method: 'POST',
+		headers: { 'cf-connecting-ip': roomId },
 		body: JSON.stringify({ id, text: TEXT }),
 	});
 }
@@ -26,6 +28,7 @@ function post(roomId: string, id: string) {
 function vote(roomId: string, questionId: string, voterId: string) {
 	return call(`/api/rooms/${roomId}/questions/${questionId}/vote`, {
 		method: 'PUT',
+		headers: { 'cf-connecting-ip': roomId },
 		body: JSON.stringify({ voterId, voted: true }),
 	});
 }

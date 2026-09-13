@@ -35,6 +35,10 @@ export interface Snapshot {
  */
 type UnknownQuestion = { status: 'unknown-question'; version: number };
 
+export type RoomFull = { status: 'room-full'; version: number };
+
+export type AskResult = { created: boolean; version: number; question: Question } | RoomFull;
+
 export type VoteResult =
 	| { status: 'changed' | 'unchanged'; version: number; votes: number }
 	| UnknownQuestion;

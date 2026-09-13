@@ -1,6 +1,7 @@
 import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import type { AskResult } from './protocol';
 
 /** A room per test, so nothing depends on how the pool isolates storage. */
 function room(name: string) {
@@ -9,11 +10,17 @@ function room(name: string) {
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
 
+/** Every room in these tests has room to spare. */
+function stored(result: AskResult) {
+	if ('status' in result) throw new Error('the room was full');
+	return result;
+}
+
 describe('Room', () => {
 	it('stores a question and advances the version', async () => {
 		const r = room('store');
 
-		const result = await r.postQuestion({ id: 'q1', text: TEXT });
+		const result = stored(await r.postQuestion({ id: 'q1', text: TEXT }));
 
 		expect(result.created).toBe(true);
 		expect(result.version).toBe(1);
@@ -31,7 +38,7 @@ describe('Room', () => {
 		const r = room('repost');
 		await r.postQuestion({ id: 'q1', text: TEXT });
 
-		const again = await r.postQuestion({ id: 'q1', text: 'まったく別の文面' });
+		const again = stored(await r.postQuestion({ id: 'q1', text: 'まったく別の文面' }));
 
 		expect(again.created).toBe(false);
 		expect(again.version).toBe(1);
@@ -42,9 +49,9 @@ describe('Room', () => {
 	it('holds questions for review only while moderation is on', async () => {
 		const r = room('moderate');
 
-		const open = await r.postQuestion({ id: 'q1', text: TEXT });
+		const open = stored(await r.postQuestion({ id: 'q1', text: TEXT }));
 		await r.setModeration(true);
-		const held = await r.postQuestion({ id: 'q2', text: TEXT });
+		const held = stored(await r.postQuestion({ id: 'q2', text: TEXT }));
 
 		expect(open.question.status).toBe('published');
 		expect(held.question.status).toBe('pending');

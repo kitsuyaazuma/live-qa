@@ -9,6 +9,9 @@ import { requireId, requireTarget, requireText } from './protocol';
  */
 const AUDIENCE_MAX_AGE = 2;
 
+/** Bounds one request body well above any question a room will store. */
+const BODY_MAX = 16 * 1024;
+
 type App = { Bindings: Env };
 
 export const api = new Hono<App>();
@@ -17,6 +20,20 @@ function fail(cause: unknown): never {
 	throw new HTTPException(400, {
 		message: cause instanceof Error ? cause.message : 'invalid request',
 	});
+}
+
+function refuse(status: 413 | 429, message: string): never {
+	throw new HTTPException(status, { message });
+}
+
+/** Keyed by client address: a hall behind one NAT shares a key, so the limits
+ * are set for a script from one machine, not for a person. */
+async function limited(
+	limiter: RateLimit,
+	c: { req: { header: (name: string) => string | undefined } },
+) {
+	const { success } = await limiter.limit({ key: c.req.header('cf-connecting-ip') ?? 'unknown' });
+	if (!success) refuse(429, 'too many from here; wait a moment');
 }
 
 function asString(value: unknown, field: string): string {
@@ -29,10 +46,15 @@ function asBoolean(value: unknown, field: string): boolean {
 	return value as boolean;
 }
 
-async function body(c: {
-	req: { json: () => Promise<unknown> };
-}): Promise<Record<string, unknown>> {
-	const parsed = await c.req.json().catch(() => fail(new Error('body must be json')));
+async function body(c: { req: { text: () => Promise<string> } }): Promise<Record<string, unknown>> {
+	const text = await c.req.text();
+	if (text.length > BODY_MAX) refuse(413, 'body too large');
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(text);
+	} catch {
+		fail(new Error('body must be json'));
+	}
 	if (typeof parsed !== 'object' || parsed === null) fail(new Error('body must be a json object'));
 	return parsed as Record<string, unknown>;
 }
@@ -54,15 +76,18 @@ function room(env: Env, roomId: string) {
 }
 
 api.post('/api/rooms/:roomId/questions', async (c) => {
+	await limited(c.env.ASK_LIMIT, c);
 	const input = await body(c);
 	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
 	const text = checked(() => requireText(asString(input.text, 'text')));
 
 	const result = await room(c.env, c.req.param('roomId')).postQuestion({ id, text });
+	if ('status' in result) return c.json({ error: 'this room is full' }, 409);
 	return c.json(result, result.created ? 201 : 200);
 });
 
 api.put('/api/rooms/:roomId/questions/:questionId/vote', async (c) => {
+	await limited(c.env.VOTE_LIMIT, c);
 	const input = await body(c);
 	const questionId = checked(() => requireId(c.req.param('questionId'), 'questionId'));
 	const voterId = checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'));

@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { translationSettingsFromEnv } from './config';
 import {
+	type AskResult,
 	type Question,
 	requireId,
 	requireTarget,
@@ -20,6 +21,9 @@ export type SnapshotView = 'audience' | 'moderator';
 const TRANSLATION_BATCH = 5;
 const TRANSLATION_DELAY_MS = 1000;
 const TRANSLATION_ATTEMPTS_MAX = 3;
+
+/** Past this a room is being flooded, not asked; a retry of a stored id still lands. */
+const QUESTIONS_MAX = 2000;
 
 /** Operator screens, and a leak rather than an audience past that. */
 const STREAMS_MAX = 8;
@@ -138,15 +142,15 @@ export class Room extends DurableObject<Env> {
 	}
 
 	/** The caller's `id` is the idempotency key: a retry consumes no version. */
-	async postQuestion(input: { id: string; text: string }): Promise<{
-		created: boolean;
-		version: number;
-		question: Question;
-	}> {
+	async postQuestion(input: { id: string; text: string }): Promise<AskResult> {
 		const id = requireId(input.id, 'id');
 		const text = requireText(input.text);
 		const sql = this.ctx.storage.sql;
 		const next = this.version + 1;
+
+		if (!this.exists(id) && this.count() >= QUESTIONS_MAX) {
+			return { status: 'room-full', version: this.version };
+		}
 
 		const created =
 			sql.exec(
@@ -391,6 +395,10 @@ export class Room extends DurableObject<Env> {
 			translates: this.translation !== null,
 			questions,
 		};
+	}
+
+	private count(): number {
+		return this.ctx.storage.sql.exec<{ n: number }>('SELECT count(*) AS n FROM questions').one().n;
 	}
 
 	private exists(id: string): boolean {
