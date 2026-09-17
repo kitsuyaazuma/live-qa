@@ -6,6 +6,8 @@ import { signIn } from './accounts';
 import { createRoom } from './rooms';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
+/** Mirrors ASK_LIMIT in wrangler.jsonc. */
+const ASK_PERIOD_MS = 10_000;
 function account(email: string) {
 	return signIn(env.DB, {
 		provider: 'google',
@@ -196,6 +198,10 @@ describe('what the edge turns away', () => {
 	});
 
 	it('holds one address to a trickle of questions', async () => {
+		// Windows are aligned to the wall clock; a loop that straddles one gets a fresh count.
+		const left = ASK_PERIOD_MS - (Date.now() % ASK_PERIOD_MS);
+		if (left < 2_000) await new Promise((resolve) => setTimeout(resolve, left));
+
 		const from = { 'cf-connecting-ip': '203.0.113.9' };
 		const statuses: number[] = [];
 		for (let i = 0; i < 51; i += 1) {
