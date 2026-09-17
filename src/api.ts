@@ -387,7 +387,7 @@ api.get('/api/rooms/:roomId', async (c) => {
 });
 
 /** Anyone may empty a scratch room, which is what load tests need. */
-api.delete(`/api/rooms/:roomId{${SCRATCH_PREFIX}.+}`, async (c) => {
+api.delete(`/api/rooms/:roomId{${SCRATCH_PREFIX}[^/]+}`, async (c) => {
 	const id = c.req.param('roomId');
 	await room(c.env, id).reset();
 	return c.json({ reset: id });

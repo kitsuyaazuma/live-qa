@@ -105,6 +105,20 @@ describe('rooms', () => {
 		expect(visitor.rooms.map((room) => room.id)).toEqual(['listed-2']);
 	});
 
+	it('matches an operator whose provider spells the email in capitals', async () => {
+		await create('cased');
+		await json('/api/rooms/cased/operators/Mixed.Case@Example.com', 'PUT', ADMIN);
+		const mixed = await sessionFor('Mixed.Case@Example.com');
+
+		const listed = (await call('/api/rooms', { headers: mixed }).then((r) => r.json())) as {
+			rooms: { id: string }[];
+		};
+		const stream = await call('/api/rooms/cased/events', { headers: mixed });
+
+		expect(listed.rooms.map((room) => room.id)).toEqual(['cased']);
+		expect(stream.status).toBe(200);
+	});
+
 	it('deletes a room for an admin and for nobody else', async () => {
 		await create('doomed');
 
@@ -141,7 +155,14 @@ describe('operators', () => {
 		const garbage = await json('/api/rooms/picky/operators/not-an-address', 'PUT', ADMIN);
 		const visitor = await json('/api/rooms/picky/operators/x@example.com', 'PUT', VISITOR);
 		const scratch = await json('/api/rooms/scratch-picky/operators/x@example.com', 'PUT', ADMIN);
+		const scratchOff = await json(
+			'/api/rooms/scratch-picky/operators/x@example.com',
+			'DELETE',
+			ADMIN,
+		);
 
-		expect([garbage.status, visitor.status, scratch.status]).toEqual([400, 403, 400]);
+		expect([garbage.status, visitor.status, scratch.status, scratchOff.status]).toEqual([
+			400, 403, 400, 400,
+		]);
 	});
 });

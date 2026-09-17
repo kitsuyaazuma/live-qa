@@ -46,17 +46,21 @@ export async function listRooms(
 	email: string | null,
 	all: boolean,
 ): Promise<RoomInfo[]> {
-	if (!all && !email) return [];
-	const { results } = all
-		? await db.prepare(`SELECT ${ROOM} FROM rooms ORDER BY created_at DESC`).all<RoomRow>()
-		: await db
-				.prepare(
-					`SELECT r.id, r.created_at FROM rooms r
-					 JOIN room_operators o ON o.room_id = r.id
-					 WHERE o.email = ? ORDER BY r.created_at DESC`,
-				)
-				.bind(email)
-				.all<RoomRow>();
+	if (all) {
+		const { results } = await db
+			.prepare(`SELECT ${ROOM} FROM rooms ORDER BY created_at DESC`)
+			.all<RoomRow>();
+		return results.map(toInfo);
+	}
+	if (!email) return [];
+	const { results } = await db
+		.prepare(
+			`SELECT r.id, r.created_at FROM rooms r
+			 JOIN room_operators o ON o.room_id = r.id
+			 WHERE o.email = ? ORDER BY r.created_at DESC`,
+		)
+		.bind(email.toLowerCase())
+		.all<RoomRow>();
 	return results.map(toInfo);
 }
 

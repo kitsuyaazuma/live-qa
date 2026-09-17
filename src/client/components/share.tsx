@@ -36,7 +36,8 @@ export function Share({ roomId }: { roomId: string }) {
 		anchor.href = url;
 		anchor.download = `live-qa-${roomId}.png`;
 		anchor.click();
-		URL.revokeObjectURL(url);
+		// Revoked on the next tick: Firefox has not started the download yet.
+		setTimeout(() => URL.revokeObjectURL(url), 0);
 	}
 
 	return (
