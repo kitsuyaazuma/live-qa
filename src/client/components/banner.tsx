@@ -1,5 +1,5 @@
+import file from '@branding/banner.svg?raw';
 import branding from '@branding/branding.json';
-import file from '@branding/public/banner.svg?raw';
 
 /** Drops the editor's prolog, and gives a pixel-sized file the viewBox without
  * which it would clip instead of scale. */
