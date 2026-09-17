@@ -15,7 +15,10 @@ export function sessionSecret(env: Env): string | undefined {
 	return env.SESSION_SECRET?.trim() || undefined;
 }
 
-export async function issueSession(c: Ctx, secret: string, userId: string): Promise<void> {
+/** Reached only behind a provider route, which has already refused to run without the secret. */
+export async function issueSession(c: Ctx, userId: string): Promise<void> {
+	const secret = sessionSecret(c.env);
+	if (!secret) throw new Error('SESSION_SECRET is not set');
 	await setSignedCookie(c, SESSION, userId, secret, {
 		path: '/',
 		httpOnly: true,

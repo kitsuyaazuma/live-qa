@@ -19,15 +19,13 @@ export class ApiError extends Error {
 	}
 }
 
-/** Hono sends a plain string for a rejected request and json for a refused one. */
+/** The worker answers with `{ error }`; anything else came from in front of it. */
 async function reason(response: Response): Promise<string> {
 	const body = await response.text();
 	try {
 		const parsed = JSON.parse(body) as { error?: unknown };
 		if (typeof parsed.error === 'string') return parsed.error;
-	} catch {
-		// Not json: the body is the message.
-	}
+	} catch {}
 	return body.slice(0, 200) || response.statusText;
 }
 

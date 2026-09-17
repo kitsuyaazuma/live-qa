@@ -58,22 +58,18 @@ const NO_STORE = { 'cache-control': 'no-store' };
 
 export const api = new Hono<App>();
 
-function fail(cause: unknown): never {
-	throw new HTTPException(400, {
-		message: cause instanceof Error ? cause.message : 'invalid request',
-	});
+/** Thrown refusals answer in the same shape as returned ones: json with an `error`. */
+function refuse(status: 400 | 401 | 404 | 413 | 415 | 429, message: string): never {
+	throw new HTTPException(status, { res: Response.json({ error: message }, { status }) });
 }
 
-function refuse(status: 413 | 415 | 429, message: string): never {
-	throw new HTTPException(status, { message });
+function fail(cause: unknown): never {
+	refuse(400, cause instanceof Error ? cause.message : 'invalid request');
 }
 
 /** Keyed by client address: a hall behind one NAT shares a key, so the limits
  * are set for a script from one machine, not for a person. */
-async function limited(
-	limiter: RateLimit,
-	c: { req: { header: (name: string) => string | undefined } },
-) {
+async function limited(limiter: RateLimit, c: Ctx) {
 	const { success } = await limiter.limit({ key: c.req.header('cf-connecting-ip') ?? 'unknown' });
 	if (!success) refuse(429, 'too many from here; wait a moment');
 }
@@ -88,7 +84,7 @@ function asBoolean(value: unknown, field: string): boolean {
 	return value as boolean;
 }
 
-async function body(c: { req: { text: () => Promise<string> } }): Promise<Record<string, unknown>> {
+async function body(c: Ctx): Promise<Record<string, unknown>> {
 	const text = await c.req.text();
 	if (text.length > BODY_MAX) refuse(413, 'body too large');
 	let parsed: unknown;
@@ -120,7 +116,7 @@ function room(env: Env, roomId: string) {
 /** The registry says which rooms exist; a scratch room always does. */
 async function known(env: Env, roomId: string | undefined): Promise<string> {
 	const id = checked(() => requireId(roomId ?? '', 'roomId'));
-	if (!(await findRoom(env.DB, id))) throw new HTTPException(404, { message: 'no such room' });
+	if (!(await findRoom(env.DB, id))) refuse(404, 'no such room');
 	return id;
 }
 
@@ -130,7 +126,7 @@ async function askerFor(c: Ctx, as: unknown): Promise<Asker | null> {
 	if (as === undefined || as === 'anonymous') return null;
 	if (as !== 'me') fail(new Error("as must be 'me' or 'anonymous'"));
 	const account = await currentAccount(c);
-	if (!account) throw new HTTPException(401, { message: 'sign in to ask with your name' });
+	if (!account) refuse(401, 'sign in to ask with your name');
 	return { name: account.name, avatar: account.avatar };
 }
 
@@ -243,10 +239,8 @@ api.use('/auth/github', async (c, next) => {
 });
 
 async function signedIn(c: Ctx, profile: Profile) {
-	const secret = sessionSecret(c.env);
-	if (!secret) return c.json({ error: 'signing in is not configured' }, 503);
 	const account = await signIn(c.env.DB, profile);
-	await issueSession(c, secret, account.id);
+	await issueSession(c, account.id);
 	const to = safePath(getCookie(c, RETURN_TO));
 	deleteCookie(c, RETURN_TO, { path: '/auth' });
 	return c.redirect(to);
@@ -467,9 +461,9 @@ api.patch('/api/rooms/:roomId', operator, async (c) => {
 	return c.json(result);
 });
 
-/** A deep link such as /r/keynote matches no file, so the asset router's
- * fallback is asked for. The api declines it, or a mistyped endpoint would
- * answer a fetch with a page. */
+/** Only /auth and /api reach the worker first, so this catches a stray GET on
+ * either: an unknown /auth path gets the app, an unknown /api path a 404 rather
+ * than a page. */
 api.get('*', (c) =>
 	c.req.path.startsWith('/api/') ? c.notFound() : c.env.ASSETS.fetch(c.req.raw),
 );
