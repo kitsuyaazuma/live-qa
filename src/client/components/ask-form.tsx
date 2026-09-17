@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TEXT_MAX } from '../../protocol';
 import { Anonymous, Send } from '../icons';
+import { useMe } from '../use-me';
 
 /** Shown from four fifths of the limit: a counter on an empty box is nagging. */
 const COUNTER_FROM = TEXT_MAX * 0.8;
@@ -10,9 +11,12 @@ export function AskForm({
 	onAsk,
 }: {
 	moderated: boolean;
-	onAsk: (text: string) => Promise<boolean>;
+	onAsk: (text: string, named: boolean) => Promise<boolean>;
 }) {
+	const me = useMe();
 	const [text, setText] = useState('');
+	const [anonymous, setAnonymous] = useState(false);
+	const named = !!me && !anonymous;
 	const [busy, setBusy] = useState(false);
 	const length = text.trim().length;
 	const refusable = busy || length === 0 || length > TEXT_MAX;
@@ -21,7 +25,7 @@ export function AskForm({
 		event.preventDefault();
 		if (refusable) return;
 		setBusy(true);
-		const sent = await onAsk(text.trim());
+		const sent = await onAsk(text.trim(), named);
 		setBusy(false);
 		if (sent) setText('');
 	}
@@ -41,10 +45,43 @@ export function AskForm({
 						if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit(event);
 					}}
 				/>
-				<div className="absolute bottom-2 left-3 flex h-8 items-center gap-1.5 text-xs opacity-70">
-					<Anonymous className="size-4" />
-					Anonymous
-				</div>
+				{me ? (
+					<fieldset aria-label="Ask as" className="join absolute bottom-2 left-2 h-8 items-center">
+						<button
+							type="button"
+							className={`btn btn-xs join-item gap-1.5 font-normal ${named ? 'btn-neutral' : ''}`}
+							aria-pressed={named}
+							title="Ask with your name"
+							onClick={() => setAnonymous(false)}
+						>
+							<div className={`avatar ${me.account.avatar ? '' : 'avatar-placeholder'}`}>
+								<div className="bg-base-200 text-base-content w-4 rounded-full">
+									{me.account.avatar ? (
+										<img src={me.account.avatar} alt="" referrerPolicy="no-referrer" />
+									) : (
+										<span className="text-[9px]">{me.account.name.slice(0, 1)}</span>
+									)}
+								</div>
+							</div>
+							<span className="max-w-28 truncate">{me.account.name}</span>
+						</button>
+						<button
+							type="button"
+							className={`btn btn-xs join-item gap-1.5 font-normal ${named ? '' : 'btn-neutral'}`}
+							aria-pressed={!named}
+							title="Ask anonymously"
+							onClick={() => setAnonymous(true)}
+						>
+							<Anonymous className="size-4" />
+							Anonymous
+						</button>
+					</fieldset>
+				) : (
+					<div className="absolute bottom-2 left-3 flex h-8 items-center gap-1.5 text-xs opacity-70">
+						<Anonymous className="size-4" />
+						Anonymous
+					</div>
+				)}
 				<div className="absolute right-2 bottom-2 flex items-center gap-2">
 					{length > COUNTER_FROM && (
 						<span

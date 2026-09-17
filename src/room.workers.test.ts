@@ -322,3 +322,26 @@ describe('Room', () => {
 		expect((await r.snapshot({ view: 'operator' })).version).toBe(0);
 	});
 });
+
+describe('askers', () => {
+	it('keeps who asked, and takes it off what the audience must not see', async () => {
+		const r = room('askers');
+		const text = 'エージェント基盤はどの層から着手すべきでしょうか。';
+		const first = await r.postQuestion({ id: 'q1', text, asker: { name: 'Aki', avatar: null } });
+		const retried = await r.postQuestion({ id: 'q1', text, asker: null });
+		await r.postQuestion({ id: 'q2', text });
+		await r.setStatus({ id: 'q1', status: 'dismissed' });
+
+		const audience = await r.snapshot({ view: 'audience' });
+		const operator = await r.snapshot({ view: 'operator' });
+
+		expect(stored(first).question.asker).toEqual({ name: 'Aki', avatar: null });
+		expect(stored(retried).question.asker).toEqual({ name: 'Aki', avatar: null });
+		expect(operator.questions.find((q) => q.id === 'q1')?.asker).toEqual({
+			name: 'Aki',
+			avatar: null,
+		});
+		expect(audience.questions.find((q) => q.id === 'q1')?.asker).toBeNull();
+		expect(operator.questions.find((q) => q.id === 'q2')?.asker).toBeNull();
+	});
+});

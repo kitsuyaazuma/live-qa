@@ -2,6 +2,7 @@ import type { Question, Status } from '../../protocol';
 import { Check, Eye, EyeOff, Pin, PinOff, ThumbsUp, Undo } from '../icons';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
+import { Byline } from './byline';
 import { GHOST } from './ghost';
 
 type Target = Exclude<Status, 'pending'>;
@@ -91,6 +92,7 @@ export function StageCard({
 			<div className={`card-body gap-2 ${big ? 'p-5' : 'p-4'}`}>
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 grow">
+						{question.asker && <Byline asker={question.asker} big={big} />}
 						{line && (
 							<p className={`font-semibold ${big ? 'text-2xl leading-snug' : ''}`}>{line}</p>
 						)}

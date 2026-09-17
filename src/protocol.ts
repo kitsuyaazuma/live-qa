@@ -10,6 +10,12 @@ export type StoredTranslation =
 	| { ok: true; headline: string | null; full: string }
 	| { ok: false; error: string; attempts: number };
 
+/** Who asked, as they were called at the time. Null is anonymous. */
+export interface Asker {
+	name: string;
+	avatar: string | null;
+}
+
 export interface Question {
 	id: string;
 	text: string;
@@ -18,6 +24,7 @@ export interface Question {
 	status: Status;
 	version: number;
 	createdAt: number;
+	asker: Asker | null;
 }
 
 export interface Snapshot {

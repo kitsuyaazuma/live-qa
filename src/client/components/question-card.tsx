@@ -2,6 +2,7 @@ import type { Question } from '../../protocol';
 import { ThumbsUp } from '../icons';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
+import { Byline } from './byline';
 import { GHOST } from './ghost';
 
 export function QuestionCard({
@@ -34,6 +35,7 @@ export function QuestionCard({
 			}`}
 		>
 			<div className="card-body gap-2 p-4">
+				{question.asker && <Byline asker={question.asker} />}
 				<p className="break-words whitespace-pre-wrap">{question.text}</p>
 				{line && <p className="text-sm opacity-70">{line}</p>}
 				<div className="flex flex-wrap items-center gap-2">

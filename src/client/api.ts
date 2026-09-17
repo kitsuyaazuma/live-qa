@@ -47,11 +47,16 @@ export interface Asked {
 	question: Question;
 }
 
-export function ask(roomId: string, id: string, text: string): Promise<Asked> {
+export function ask(
+	roomId: string,
+	id: string,
+	text: string,
+	as: 'me' | 'anonymous',
+): Promise<Asked> {
 	return send(`${rooms(roomId)}/questions`, {
 		method: 'POST',
 		headers: JSON_BODY,
-		body: JSON.stringify({ id, text }),
+		body: JSON.stringify({ id, text, as }),
 	});
 }
 

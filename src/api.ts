@@ -25,6 +25,7 @@ import {
 import { roomLocationFromEnv } from './config';
 import {
 	type Account,
+	type Asker,
 	requireEmail,
 	requireId,
 	requireName,
@@ -123,14 +124,25 @@ async function known(env: Env, roomId: string | undefined): Promise<string> {
 	return id;
 }
 
+/** A named question carries what the account is called now, read from the
+ * cookie and never from the body. */
+async function askerFor(c: Ctx, as: unknown): Promise<Asker | null> {
+	if (as === undefined || as === 'anonymous') return null;
+	if (as !== 'me') fail(new Error("as must be 'me' or 'anonymous'"));
+	const account = await currentAccount(c);
+	if (!account) throw new HTTPException(401, { message: 'sign in to ask with your name' });
+	return { name: account.name, avatar: account.avatar };
+}
+
 api.post('/api/rooms/:roomId/questions', async (c) => {
 	await limited(c.env.ASK_LIMIT, c);
 	const input = await body(c);
 	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
 	const text = checked(() => requireText(asString(input.text, 'text')));
+	const asker = await askerFor(c, input.as);
 	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, roomId).postQuestion({ id, text });
+	const result = await room(c.env, roomId).postQuestion({ id, text, asker });
 	if ('status' in result) return c.json({ error: 'this room is full' }, 409);
 	return c.json(result, result.created ? 201 : 200);
 });

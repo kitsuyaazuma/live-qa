@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { translationSettingsFromEnv } from './config';
 import {
+	type Asker,
 	type AskResult,
 	type Question,
 	requireId,
@@ -32,7 +33,7 @@ const STREAMS_MAX = 8;
  * as the reaper: a screen that closed is noticed on the next failed write. */
 const HEARTBEAT_MS = 15000;
 
-const COLUMNS = 'id, text, translation, votes, status, version, created_at';
+const COLUMNS = 'id, text, translation, votes, status, version, created_at, asker';
 
 /**
  * The counter is its own row, not `MAX(questions.version)`, so a delete cannot
@@ -47,7 +48,8 @@ CREATE TABLE IF NOT EXISTS questions (
 	status TEXT NOT NULL DEFAULT 'pending'
 		CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed')),
 	version INTEGER NOT NULL,
-	created_at INTEGER NOT NULL
+	created_at INTEGER NOT NULL,
+	asker TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS questions_version ON questions (version);
@@ -78,11 +80,12 @@ type QuestionRow = {
 	status: string;
 	version: number;
 	created_at: number;
+	asker: string | null;
 };
 
 /** Enough for a client to take the question off screen, and nothing more. */
 function withoutContent(question: Question): Question {
-	return { ...question, text: '', translation: null };
+	return { ...question, text: '', translation: null, asker: null };
 }
 
 /** Reported, not thrown: one bad row must not take down a whole snapshot. */
@@ -92,6 +95,15 @@ function parseTranslation(raw: string | null): StoredTranslation | null {
 		return JSON.parse(raw) as StoredTranslation;
 	} catch {
 		return { ok: false, error: 'stored translation is not valid json', attempts: 0 };
+	}
+}
+
+function parseAsker(raw: string | null): Asker | null {
+	if (raw === null) return null;
+	try {
+		return JSON.parse(raw) as Asker;
+	} catch {
+		return null;
 	}
 }
 
@@ -112,6 +124,7 @@ function toQuestion(row: QuestionRow): Question {
 		status: row.status as Status,
 		version: row.version,
 		createdAt: row.created_at,
+		asker: parseAsker(row.asker),
 	};
 }
 
@@ -129,6 +142,12 @@ export class Room extends DurableObject<Env> {
 		ctx.blockConcurrencyWhile(async () => {
 			const sql = ctx.storage.sql;
 			sql.exec(SCHEMA);
+			// Rooms from before names were kept get the column on their next wake.
+			const columns = sql
+				.exec<{ name: string }>("SELECT name FROM pragma_table_info('questions')")
+				.toArray()
+				.map((column) => column.name);
+			if (!columns.includes('asker')) sql.exec('ALTER TABLE questions ADD COLUMN asker TEXT');
 			const row = sql
 				.exec<{ version: number; moderated: number }>(
 					'SELECT version, moderated FROM room WHERE id = 1',
@@ -142,7 +161,11 @@ export class Room extends DurableObject<Env> {
 	}
 
 	/** The caller's `id` is the idempotency key: a retry consumes no version. */
-	async postQuestion(input: { id: string; text: string }): Promise<AskResult> {
+	async postQuestion(input: {
+		id: string;
+		text: string;
+		asker?: Asker | null;
+	}): Promise<AskResult> {
 		const id = requireId(input.id, 'id');
 		const text = requireText(input.text);
 		const sql = this.ctx.storage.sql;
@@ -154,13 +177,14 @@ export class Room extends DurableObject<Env> {
 
 		const created =
 			sql.exec(
-				`INSERT OR IGNORE INTO questions (id, text, status, version, created_at)
-				 VALUES (?, ?, ?, ?, ?)`,
+				`INSERT OR IGNORE INTO questions (id, text, status, version, created_at, asker)
+				 VALUES (?, ?, ?, ?, ?, ?)`,
 				id,
 				text,
 				this.moderated ? 'pending' : 'published',
 				next,
 				Date.now(),
+				input.asker ? JSON.stringify(input.asker) : null,
 			).rowsWritten > 0;
 
 		if (created) {

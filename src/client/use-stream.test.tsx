@@ -12,6 +12,7 @@ function question(overrides: Partial<Question> = {}): Question {
 		status: 'published',
 		version: 1,
 		createdAt: 1,
+		asker: null,
 		...overrides,
 	};
 }

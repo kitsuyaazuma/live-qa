@@ -12,6 +12,7 @@ function question(overrides: Partial<Question> = {}): Question {
 		status: 'published',
 		version: 1,
 		createdAt: 1,
+		asker: null,
 		...overrides,
 	};
 }
@@ -100,7 +101,7 @@ describe('useRoom', () => {
 		await settle();
 
 		await act(async () => {
-			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。');
+			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。', false);
 		});
 
 		expect(result.current.questions.map((q) => q.id)).toEqual([asked?.id]);
@@ -111,7 +112,7 @@ describe('useRoom', () => {
 		const { result } = renderHook(() => useRoom('keynote'));
 		await settle();
 		await act(async () => {
-			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。');
+			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。', false);
 		});
 
 		served = {

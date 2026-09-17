@@ -24,6 +24,7 @@ async function sessionFor(email: string): Promise<Record<string, string>> {
 
 /** Every registered room these tests reach for; the rest are scratch rooms. */
 const ROOMS = [
+	'named',
 	'badstatus',
 	'bloat',
 	'bust',
@@ -240,6 +241,34 @@ describe('signing in', () => {
 
 		expect(out.status).toBe(204);
 		expect(out.headers.get('set-cookie')).not.toContain('return-to');
+	});
+});
+
+describe('asking with a name', () => {
+	it('signs the question with what the account is called, only when asked to', async () => {
+		const me = await sessionFor('asker@example.com');
+		const ask = (as: string | undefined, headers: Record<string, string>, id: string) =>
+			call('/api/rooms/named/questions', {
+				method: 'POST',
+				headers: { ...headers, 'cf-connecting-ip': 'named', 'content-type': 'application/json' },
+				body: JSON.stringify({ id, text: TEXT, as }),
+			});
+
+		const named = (await ask('me', me, 'q1').then((r) => r.json())) as {
+			question: { asker: { name: string } | null };
+		};
+		const quiet = (await ask('anonymous', me, 'q2').then((r) => r.json())) as {
+			question: { asker: unknown };
+		};
+		const plain = (await ask(undefined, {}, 'q3').then((r) => r.json())) as {
+			question: { asker: unknown };
+		};
+		const stranger = await ask('me', {}, 'q4');
+		const garbage = await ask('someone', me, 'q5');
+
+		expect(named.question.asker).toEqual({ name: 'asker', avatar: null });
+		expect([quiet.question.asker, plain.question.asker]).toEqual([null, null]);
+		expect([stranger.status, garbage.status]).toEqual([401, 400]);
 	});
 });
 

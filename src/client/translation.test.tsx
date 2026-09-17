@@ -12,6 +12,7 @@ function question(translation: Question['translation']): Question {
 		status: 'published',
 		version: 1,
 		createdAt: 1,
+		asker: null,
 	};
 }
 

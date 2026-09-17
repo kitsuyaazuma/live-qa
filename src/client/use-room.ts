@@ -23,7 +23,7 @@ interface RoomState {
 	/** The registry has no such room, so nothing here will ever load. */
 	missing: boolean;
 	error: string | null;
-	ask: (text: string) => Promise<boolean>;
+	ask: (text: string, named: boolean) => Promise<boolean>;
 	toggleVote: (id: string) => Promise<void>;
 	dismissError: () => void;
 }
@@ -101,10 +101,10 @@ export function useRoom(roomId: string): RoomState {
 	}, [roomId]);
 
 	const ask = useCallback(
-		async (text: string) => {
+		async (text: string, named: boolean) => {
 			const id = crypto.randomUUID();
 			try {
-				const result = await api.ask(roomId, id, text);
+				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous');
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
 				refresh.current();
