@@ -11,10 +11,11 @@ TRANSLATION_CONTEXT="Event: Platform Engineering Kaigi 2026\nTalk: Architecting 
 
 # TRANSLATION_MODEL="@cf/qwen/qwen3.8-27b"
 
-# Signing in. Register one OAuth app per provider with the callback
-#   <origin>/auth/google  and  <origin>/auth/github
-# (for local work, http://localhost:5173/auth/google and /auth/github).
-# In production: wrangler secret put <NAME> for each of these.
+# Signing in. Callbacks are <origin>/auth/google and <origin>/auth/github.
+# One Google client can list both the deployed origin and
+# http://localhost:5173; GitHub is sent back to an app's first callback URL,
+# so register a separate GitHub app for local work with only the localhost
+# callback. In production: wrangler secret put <NAME> for each of these.
 SESSION_SECRET=""
 ADMIN_EMAILS=""
 GOOGLE_CLIENT_ID=""
