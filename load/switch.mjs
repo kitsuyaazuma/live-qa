@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Times the hop the event depends on: a moderator picks a question, and the
+// Times the hop the event depends on: an operator picks a question, and the
 // screen behind the speaker has to show it. Everything else can be a poll away.
 
 import { createHmac } from 'node:crypto';
@@ -56,7 +56,7 @@ function received(diff) {
 	awaited = null;
 }
 
-const stream = await fetch(`${rooms}/moderator/events`, { headers: auth });
+const stream = await fetch(`${rooms}/events`, { headers: auth });
 if (!stream.ok) throw new Error(`the room refused a stream: ${stream.status}`);
 
 let opened = false;
@@ -89,7 +89,7 @@ for (let round = 0; round < rounds; round += 1) {
 	const id = round % 2 === 0 ? 'switch-a' : 'switch-b';
 	const arrived = watch(id);
 	const start = performance.now();
-	const response = await fetch(`${rooms}/moderator/questions/${id}`, {
+	const response = await fetch(`${rooms}/questions/${id}`, {
 		method: 'PATCH',
 		headers: json,
 		body: JSON.stringify({ status: 'answering' }),

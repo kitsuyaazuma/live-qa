@@ -15,7 +15,7 @@ import {
 } from './protocol';
 import { type TranslationSettings, WorkersAiTranslator } from './translate';
 
-export type SnapshotView = 'audience' | 'moderator';
+export type SnapshotView = 'audience' | 'operator';
 
 /** Workers AI allows three hundred text generations a minute per account. */
 const TRANSLATION_BATCH = 5;
@@ -326,7 +326,7 @@ export class Room extends DurableObject<Env> {
 		const writer = writable.getWriter();
 		this.streams.add(writer);
 		this.beat ??= setInterval(() => this.each(encoder.encode(': beat\n\n')), HEARTBEAT_MS);
-		this.send(writer, frame(this.version, this.project('moderator', since)));
+		this.send(writer, frame(this.version, this.project('operator', since)));
 
 		return readable;
 	}
@@ -347,7 +347,7 @@ export class Room extends DurableObject<Env> {
 		this.ctx.storage.sql.exec('UPDATE room SET version = ? WHERE id = 1', version);
 		this.version = version;
 		// Only the rows this version touched: a screen holds the rest already.
-		if (this.streams.size > 0) this.each(frame(version, this.project('moderator', version - 1)));
+		if (this.streams.size > 0) this.each(frame(version, this.project('operator', version - 1)));
 	}
 
 	private each(bytes: Uint8Array): void {

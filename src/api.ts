@@ -1,6 +1,6 @@
 import { githubAuth } from '@hono/oauth-providers/github';
 import { googleAuth } from '@hono/oauth-providers/google';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
 import { type Profile, signIn } from './accounts';
@@ -236,12 +236,12 @@ api.get('/api/me', async (c) => {
 });
 
 /** For now the operators of every room are the admins; rooms get their own next. */
-api.use('/api/rooms/:roomId/moderator/*', async (c, next) => {
+const operator: MiddlewareHandler<App> = async (c, next) => {
 	const account = await currentAccount(c);
 	if (!account) return c.json({ error: 'sign in first' }, 401);
 	if (!isAdmin(c.env, account)) return c.json({ error: 'not an operator of this room' }, 403);
 	return next();
-});
+};
 
 api.delete('/api/rooms/:roomId', async (c) => {
 	const roomId = c.req.param('roomId');
@@ -259,16 +259,8 @@ function whole(value: string | undefined): number {
 	return parsed;
 }
 
-api.get('/api/rooms/:roomId/moderator/questions', async (c) => {
-	const snapshot = await room(c.env, c.req.param('roomId')).snapshot({
-		view: 'moderator',
-		since: whole(c.req.query('since')),
-	});
-	return c.json(snapshot, 200, { 'cache-control': 'no-store' });
-});
-
 /** Operator screens only: a stream per phone would put the audience back on the object. */
-api.get('/api/rooms/:roomId/moderator/events', async (c) => {
+api.get('/api/rooms/:roomId/events', operator, async (c) => {
 	const stream = await room(c.env, c.req.param('roomId')).subscribe(whole(c.req.query('since')));
 	if (!stream) return c.json({ error: 'this room already has enough live screens' }, 503);
 
@@ -282,7 +274,7 @@ api.get('/api/rooms/:roomId/moderator/events', async (c) => {
 	});
 });
 
-api.patch('/api/rooms/:roomId/moderator/questions/:questionId', async (c) => {
+api.patch('/api/rooms/:roomId/questions/:questionId', operator, async (c) => {
 	const input = await body(c);
 	const id = checked(() => requireId(c.req.param('questionId'), 'questionId'));
 	const status = checked(() => requireTarget(asString(input.status, 'status')));
@@ -291,10 +283,10 @@ api.patch('/api/rooms/:roomId/moderator/questions/:questionId', async (c) => {
 	return c.json(result, result.status === 'unknown-question' ? 404 : 200);
 });
 
-api.put('/api/rooms/:roomId/moderator/moderation', async (c) => {
+api.patch('/api/rooms/:roomId', operator, async (c) => {
 	const input = await body(c);
 	const result = await room(c.env, c.req.param('roomId')).setModeration(
-		asBoolean(input.enabled, 'enabled'),
+		asBoolean(input.moderated, 'moderated'),
 	);
 	return c.json(result);
 });

@@ -43,7 +43,7 @@ describe('Room', () => {
 		expect(again.created).toBe(false);
 		expect(again.version).toBe(1);
 		expect(again.question.text).toBe(TEXT);
-		expect((await r.snapshot({ view: 'moderator' })).questions).toHaveLength(1);
+		expect((await r.snapshot({ view: 'operator' })).questions).toHaveLength(1);
 	});
 
 	it('holds questions for review only while moderation is on', async () => {
@@ -55,7 +55,7 @@ describe('Room', () => {
 
 		expect(open.question.status).toBe('published');
 		expect(held.question.status).toBe('pending');
-		expect((await r.snapshot({ view: 'moderator' })).moderated).toBe(true);
+		expect((await r.snapshot({ view: 'operator' })).moderated).toBe(true);
 	});
 
 	it('leaves questions pending when moderation is switched off', async () => {
@@ -65,7 +65,7 @@ describe('Room', () => {
 
 		await r.setModeration(false);
 
-		const { moderated, questions } = await r.snapshot({ view: 'moderator' });
+		const { moderated, questions } = await r.snapshot({ view: 'operator' });
 		expect(moderated).toBe(false);
 		expect(questions[0]?.status).toBe('pending');
 	});
@@ -165,7 +165,7 @@ describe('Room', () => {
 		await r.setStatus({ id: 'q2', status: 'answering' });
 
 		const byId = Object.fromEntries(
-			(await r.snapshot({ view: 'moderator' })).questions.map((q) => [q.id, q.status]),
+			(await r.snapshot({ view: 'operator' })).questions.map((q) => [q.id, q.status]),
 		);
 		expect(byId).toEqual({ q1: 'answered', q2: 'answering' });
 	});
@@ -226,7 +226,7 @@ describe('Room', () => {
 			state.storage.sql.exec(`UPDATE questions SET translation = '{not json' WHERE id = 'q1'`);
 		});
 
-		const { questions } = await r.snapshot({ view: 'moderator' });
+		const { questions } = await r.snapshot({ view: 'operator' });
 
 		expect(questions[0]?.translation).toEqual({
 			ok: false,
@@ -241,7 +241,7 @@ describe('Room', () => {
 		await r.postQuestion({ id: 'q2', text: TEXT });
 		await r.setVote({ questionId: 'q1', voterId: 'alice', voted: true });
 
-		const { version, questions } = await r.snapshot({ view: 'moderator' });
+		const { version, questions } = await r.snapshot({ view: 'operator' });
 
 		expect(version).toBe(3);
 		expect(questions.map((q) => [q.id, q.version])).toEqual([
@@ -255,7 +255,7 @@ describe('Room', () => {
 		await r.postQuestion({ id: 'q1', text: TEXT });
 		await r.postQuestion({ id: 'q2', text: TEXT });
 
-		const since = await r.snapshot({ view: 'moderator', since: 1 });
+		const since = await r.snapshot({ view: 'operator', since: 1 });
 
 		expect(since.version).toBe(2);
 		expect(since.questions.map((q) => q.id)).toEqual(['q2']);
@@ -269,7 +269,7 @@ describe('Room', () => {
 		await evictDurableObject(r);
 
 		const revived = room('evict');
-		const after = await revived.snapshot({ view: 'moderator' });
+		const after = await revived.snapshot({ view: 'operator' });
 		expect(after.version).toBe(2);
 		expect(after.moderated).toBe(true);
 
@@ -277,13 +277,13 @@ describe('Room', () => {
 		expect(next.version).toBe(3);
 	});
 
-	it('keeps dismissed text for the moderator and withholds it from the audience', async () => {
+	it('keeps dismissed text for the operator and withholds it from the audience', async () => {
 		const r = room('dismiss');
 		await r.postQuestion({ id: 'q1', text: TEXT });
 		await r.setStatus({ id: 'q1', status: 'dismissed' });
 
 		const seen = await r.snapshot({ view: 'audience' });
-		const audited = await r.snapshot({ view: 'moderator' });
+		const audited = await r.snapshot({ view: 'operator' });
 
 		expect(seen.questions).toEqual([
 			expect.objectContaining({ id: 'q1', status: 'dismissed', text: '', translation: null }),
@@ -297,7 +297,7 @@ describe('Room', () => {
 		await r.postQuestion({ id: 'q1', text: TEXT });
 
 		expect((await r.snapshot({ view: 'audience' })).questions).toEqual([]);
-		expect((await r.snapshot({ view: 'moderator' })).questions).toHaveLength(1);
+		expect((await r.snapshot({ view: 'operator' })).questions).toHaveLength(1);
 	});
 
 	it('schedules no translation when no model is configured', async () => {
@@ -319,6 +319,6 @@ describe('Room', () => {
 			await expect(post('', TEXT)).rejects.toThrow(/id must be/);
 		});
 
-		expect((await r.snapshot({ view: 'moderator' })).version).toBe(0);
+		expect((await r.snapshot({ view: 'operator' })).version).toBe(0);
 	});
 });

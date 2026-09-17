@@ -212,13 +212,13 @@ describe('signing in', () => {
 	});
 });
 
-describe('moderator api', () => {
+describe('operator api', () => {
 	it('turns away someone not signed in, and someone who is but is no admin', async () => {
-		const anonymous = await call('/api/rooms/gate/moderator/questions');
-		const visitor = await call('/api/rooms/gate/moderator/questions', {
+		const anonymous = await call('/api/rooms/gate/events');
+		const visitor = await call('/api/rooms/gate/events', {
 			headers: await sessionFor('visitor@example.com'),
 		});
-		const forged = await call('/api/rooms/gate/moderator/questions', {
+		const forged = await call('/api/rooms/gate/events', {
 			headers: { cookie: 'session=someone.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
 		});
 
@@ -236,32 +236,32 @@ describe('moderator api', () => {
 		});
 	});
 
-	it('shows pending questions only to the moderator', async () => {
-		await call('/api/rooms/hidden/moderator/moderation', {
-			method: 'PUT',
+	it('shows pending questions only to an operator', async () => {
+		await call('/api/rooms/hidden', {
+			method: 'PATCH',
 			headers: ADMIN,
-			body: JSON.stringify({ enabled: true }),
+			body: JSON.stringify({ moderated: true }),
 		});
 		await post('hidden', 'q1');
 
 		const audience = (await read('hidden').then((r) => r.json())) as { questions: unknown[] };
-		const moderator = (await call('/api/rooms/hidden/moderator/questions', {
-			headers: ADMIN,
-		}).then((r) => r.json())) as { questions: unknown[] };
+		const operator = (await pushed(
+			(await events('hidden')).body?.getReader() as ReadableStreamDefaultReader<Uint8Array>,
+		)) as { questions: unknown[] };
 
 		expect(audience.questions).toEqual([]);
-		expect(moderator.questions).toHaveLength(1);
+		expect(operator.questions).toHaveLength(1);
 	});
 
 	it('refuses a status that is not a transition target', async () => {
 		await post('badstatus', 'q1');
 
-		const garbage = await call('/api/rooms/badstatus/moderator/questions/q1', {
+		const garbage = await call('/api/rooms/badstatus/questions/q1', {
 			method: 'PATCH',
 			headers: ADMIN,
 			body: JSON.stringify({ status: 'nonsense' }),
 		});
-		const backwards = await call('/api/rooms/badstatus/moderator/questions/q1', {
+		const backwards = await call('/api/rooms/badstatus/questions/q1', {
 			method: 'PATCH',
 			headers: ADMIN,
 			body: JSON.stringify({ status: 'pending' }),
@@ -273,12 +273,12 @@ describe('moderator api', () => {
 	it('changes a status and reports an unknown question as not found', async () => {
 		await post('status', 'q1');
 
-		const changed = await call('/api/rooms/status/moderator/questions/q1', {
+		const changed = await call('/api/rooms/status/questions/q1', {
 			method: 'PATCH',
 			headers: ADMIN,
 			body: JSON.stringify({ status: 'answering' }),
 		});
-		const missing = await call('/api/rooms/status/moderator/questions/nope', {
+		const missing = await call('/api/rooms/status/questions/nope', {
 			method: 'PATCH',
 			headers: ADMIN,
 			body: JSON.stringify({ status: 'answering' }),
@@ -320,8 +320,8 @@ describe('disposable rooms', () => {
 		const wiped = await wipe('scratch-2');
 
 		expect(wiped.status).toBe(200);
-		const after = await call('/api/rooms/scratch-2/moderator/questions', { headers: ADMIN }).then(
-			(r) => r.json() as Promise<{ version: number; questions: unknown[] }>,
+		const after = await pushed(
+			(await events('scratch-2')).body?.getReader() as ReadableStreamDefaultReader<Uint8Array>,
 		);
 		expect(after).toMatchObject({ version: 0, questions: [] });
 		expect((await post('scratch-2', 'q2')).status).toBe(201);
@@ -347,7 +347,7 @@ async function pushed(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<
 
 function events(roomId: string, since?: number) {
 	const query = since === undefined ? '' : `?since=${since}`;
-	return call(`/api/rooms/${roomId}/moderator/events${query}`, { headers: ADMIN });
+	return call(`/api/rooms/${roomId}/events${query}`, { headers: ADMIN });
 }
 
 describe('operator stream', () => {
@@ -390,7 +390,7 @@ describe('operator stream', () => {
 	});
 
 	it('refuses a stream to someone not signed in', async () => {
-		const anonymous = await call('/api/rooms/stream/moderator/events');
+		const anonymous = await call('/api/rooms/stream/events');
 
 		expect(anonymous.status).toBe(401);
 	});

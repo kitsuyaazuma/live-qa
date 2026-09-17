@@ -42,7 +42,7 @@ export function useStream(roomId: string, enabled: boolean): StreamState {
 				let silence = setTimeout(() => controller.abort(), SILENCE_MS);
 				try {
 					const response = await fetch(
-						`/api/rooms/${encodeURIComponent(roomId)}/moderator/events?since=${since}`,
+						`/api/rooms/${encodeURIComponent(roomId)}/events?since=${since}`,
 						{ signal: controller.signal },
 					);
 					if (response.status === 401 || response.status === 403) {

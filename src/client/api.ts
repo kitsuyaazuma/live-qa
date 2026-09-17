@@ -78,7 +78,7 @@ export function setStatus(
 	questionId: string,
 	status: Question['status'],
 ): Promise<StatusResult> {
-	return send(`${rooms(roomId)}/moderator/questions/${encodeURIComponent(questionId)}`, {
+	return send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}`, {
 		method: 'PATCH',
 		headers: JSON_BODY,
 		body: JSON.stringify({ status }),
@@ -89,10 +89,10 @@ export function setModeration(
 	roomId: string,
 	enabled: boolean,
 ): Promise<{ version: number; moderated: boolean }> {
-	return send(`${rooms(roomId)}/moderator/moderation`, {
-		method: 'PUT',
+	return send(rooms(roomId), {
+		method: 'PATCH',
 		headers: JSON_BODY,
-		body: JSON.stringify({ enabled }),
+		body: JSON.stringify({ moderated: enabled }),
 	});
 }
 

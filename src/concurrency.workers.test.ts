@@ -1,7 +1,5 @@
 import { env, exports } from 'cloudflare:workers';
-import { serializeSigned } from 'hono/utils/cookie';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { signIn } from './accounts';
+import { describe, expect, it, vi } from 'vitest';
 
 /**
  * The room is one Durable Object instance, so these check the two things that
@@ -12,18 +10,6 @@ import { signIn } from './accounts';
 
 const BURST = 50;
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
-let ADMIN: Record<string, string> = {};
-beforeAll(async () => {
-	const account = await signIn(env.DB, {
-		provider: 'google',
-		providerId: 'admin@example.com',
-		email: 'admin@example.com',
-		name: 'Admin',
-		avatar: null,
-	});
-	const cookie = await serializeSigned('session', account.id, 'test-secret');
-	ADMIN = { cookie: cookie.split(';')[0] ?? '' };
-});
 
 function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
@@ -55,9 +41,8 @@ async function warm(roomId: string) {
 	});
 }
 
-async function moderatorView(roomId: string) {
-	const response = await call(`/api/rooms/${roomId}/moderator/questions`, { headers: ADMIN });
-	return (await response.json()) as { version: number; questions: { id: string; votes: number }[] };
+function operatorView(roomId: string) {
+	return env.ROOM.getByName(roomId).snapshot({ view: 'operator' });
 }
 
 const times = (n: number) => Array.from({ length: n }, (_, i) => i);
@@ -87,7 +72,7 @@ describe('a burst of writers', () => {
 
 		await Promise.all(times(BURST).map((i) => vote('burstvote', 'q1', `voter-${i}`)));
 
-		const { questions } = await moderatorView('burstvote');
+		const { questions } = await operatorView('burstvote');
 		expect(questions[0]?.votes).toBe(BURST);
 	});
 
@@ -96,14 +81,14 @@ describe('a burst of writers', () => {
 
 		await Promise.all(times(BURST).map(() => vote('samevoter', 'q1', 'alice')));
 
-		const { questions } = await moderatorView('samevoter');
+		const { questions } = await operatorView('samevoter');
 		expect(questions[0]?.votes).toBe(1);
 	});
 
 	it('gives every question its own version', async () => {
 		await Promise.all(times(BURST).map((i) => post('burstpost', `q${i}`)));
 
-		const { version, questions } = await moderatorView('burstpost');
+		const { version, questions } = await operatorView('burstpost');
 		expect(questions).toHaveLength(BURST);
 		expect(new Set(questions.map((q) => q.id)).size).toBe(BURST);
 		expect(version).toBe(BURST);
@@ -113,7 +98,7 @@ describe('a burst of writers', () => {
 		const responses = await Promise.all(times(BURST).map(() => post('retryburst', 'q1')));
 
 		const created = responses.filter((r) => r.status === 201);
-		const { version, questions } = await moderatorView('retryburst');
+		const { version, questions } = await operatorView('retryburst');
 		expect(created).toHaveLength(1);
 		expect(questions).toHaveLength(1);
 		expect(version).toBe(1);

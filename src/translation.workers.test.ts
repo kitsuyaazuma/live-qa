@@ -46,7 +46,7 @@ describe('translation queue', () => {
 
 		await vi.waitFor(
 			async () => {
-				const { questions } = await r.snapshot({ view: 'moderator' });
+				const { questions } = await r.snapshot({ view: 'operator' });
 				expect(questions[0]?.translation).toEqual({
 					ok: true,
 					headline: 'headline for q1',
@@ -78,7 +78,7 @@ describe('translation queue', () => {
 
 		await runDurableObjectAlarm(r);
 
-		const { questions } = await r.snapshot({ view: 'moderator' });
+		const { questions } = await r.snapshot({ view: 'operator' });
 		expect(questions.map((q) => [q.id, q.translation])).toEqual([
 			['q1', { ok: true, headline: 'headline for q1', full: 'full for q1' }],
 			['q2', { ok: true, headline: 'headline for q2', full: 'full for q2' }],
@@ -112,7 +112,7 @@ describe('translation queue', () => {
 
 		expect(model.batches).toEqual([['q1'], ['q1'], ['q1']]);
 		expect(givenUp).toBe(false);
-		const { questions } = await r.snapshot({ view: 'moderator' });
+		const { questions } = await r.snapshot({ view: 'operator' });
 		expect(questions[0]?.translation).toEqual({
 			ok: false,
 			error: '3040: capacity temporarily exceeded',
@@ -120,7 +120,7 @@ describe('translation queue', () => {
 		});
 	});
 
-	it('spends nothing on a question the moderator dismissed', async () => {
+	it('spends nothing on a question an operator dismissed', async () => {
 		const r = room('dismissed');
 		await r.postQuestion({ id: 'q1', text: TEXT });
 		await r.setStatus({ id: 'q1', status: 'dismissed' });
@@ -128,7 +128,7 @@ describe('translation queue', () => {
 		await runDurableObjectAlarm(r);
 
 		expect(model.batches).toEqual([]);
-		const { questions } = await r.snapshot({ view: 'moderator' });
+		const { questions } = await r.snapshot({ view: 'operator' });
 		expect(questions[0]?.translation).toBeNull();
 	});
 

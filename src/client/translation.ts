@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Question } from '../protocol';
 import { rememberTranslationShown, translationShown } from './storage';
 
-/** Which translated line this screen shows. The moderator reads to decide and
+/** Which translated line this screen shows. The operator reads to decide and
  * the stage reads aloud, so the two want different lines and neither is told
  * by the room: it is a reading preference, kept per browser. */
 export const TRANSLATION_SHOWN = ['headline', 'full', 'none'] as const;
