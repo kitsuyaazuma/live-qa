@@ -78,6 +78,26 @@ export function requireTarget(value: string): Exclude<Status, 'pending'> {
 	return value as Exclude<Status, 'pending'>;
 }
 
+/** Only a shape check; the provider is who vouches for the address. */
+export function requireEmail(value: string): string {
+	const email = value.trim().toLowerCase();
+	if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+		throw new Error('email must look like an address');
+	}
+	return email;
+}
+
+/** A room the registry knows. Scratch rooms are not in it, so they carry no date. */
+export interface RoomInfo {
+	id: string;
+	createdAt: number | null;
+}
+
+export interface Operator {
+	email: string;
+	addedAt: number;
+}
+
 export type Provider = 'google' | 'github';
 
 /** Someone who signed in. Only what a screen needs to show them. */

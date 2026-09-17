@@ -3,24 +3,55 @@ import { env, exports } from 'cloudflare:workers';
 import { serializeSigned } from 'hono/utils/cookie';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { signIn } from './accounts';
+import { createRoom } from './rooms';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
-/** A session for an account that exists, signed the way the worker signs. */
-async function sessionFor(email: string): Promise<Record<string, string>> {
-	const account = await signIn(env.DB, {
+function account(email: string) {
+	return signIn(env.DB, {
 		provider: 'google',
 		providerId: email,
 		email,
 		name: email.split('@')[0] ?? email,
 		avatar: null,
 	});
-	const cookie = await serializeSigned('session', account.id, 'test-secret');
+}
+
+/** A session for an account that exists, signed the way the worker signs. */
+async function sessionFor(email: string): Promise<Record<string, string>> {
+	const cookie = await serializeSigned('session', (await account(email)).id, 'test-secret');
 	return { cookie: cookie.split(';')[0] ?? '' };
 }
+
+/** Every registered room these tests reach for; the rest are scratch rooms. */
+const ROOMS = [
+	'badstatus',
+	'bloat',
+	'bust',
+	'cache',
+	'create',
+	'crowd',
+	'etag',
+	'fallback',
+	'fresh',
+	'gate',
+	'hidden',
+	'packed',
+	'params',
+	'pek2026-keynote',
+	'reject',
+	'resume',
+	'stale304',
+	'status',
+	'stream',
+	'trickle',
+	'vote',
+];
 
 let ADMIN: Record<string, string> = {};
 beforeAll(async () => {
 	ADMIN = await sessionFor('admin@example.com');
+	const admin = await account('admin@example.com');
+	for (const id of ROOMS) await createRoom(env.DB, id, admin.id);
 });
 
 function call(path: string, init?: RequestInit) {
@@ -303,12 +334,12 @@ describe('disposable rooms', () => {
 		return call(`/api/rooms/${roomId}`, { method: 'DELETE' });
 	}
 
-	it('refuses to empty a room that is not disposable', async () => {
+	it('does not let a stranger empty a room that is not disposable', async () => {
 		await post('pek2026-keynote', 'q1');
 
 		const refused = await wipe('pek2026-keynote');
 
-		expect(refused.status).toBe(403);
+		expect(refused.status).toBe(401);
 		expect((await read('pek2026-keynote').then((r) => r.json())) as { version: number }).toEqual(
 			expect.objectContaining({ version: 1 }),
 		);

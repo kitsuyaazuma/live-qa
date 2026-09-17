@@ -20,6 +20,8 @@ interface RoomState {
 	connection: Connection;
 	asked: Set<string>;
 	voted: Set<string>;
+	/** The registry has no such room, so nothing here will ever load. */
+	missing: boolean;
 	error: string | null;
 	ask: (text: string) => Promise<boolean>;
 	toggleVote: (id: string) => Promise<void>;
@@ -39,6 +41,7 @@ export function useRoom(roomId: string): RoomState {
 	const [voted, setVoted] = useState(() => recall(roomId, 'votes'));
 	const [echoes, setEchoes] = useState<Map<string, Echo>>(new Map());
 	const [error, setError] = useState<string | null>(null);
+	const [missing, setMissing] = useState(false);
 	const refresh = useRef(() => {});
 
 	useEffect(() => {
@@ -67,8 +70,12 @@ export function useRoom(roomId: string): RoomState {
 				failures = 0;
 				loaded = true;
 				setConnection('live');
-			} catch {
+			} catch (cause) {
 				if (stopped) return;
+				if (cause instanceof api.ApiError && cause.status === 404) {
+					setMissing(true);
+					return;
+				}
 				failures += 1;
 				setConnection('stale');
 			}
@@ -144,6 +151,7 @@ export function useRoom(roomId: string): RoomState {
 		connection,
 		asked,
 		voted,
+		missing,
 		error,
 		ask,
 		toggleVote,

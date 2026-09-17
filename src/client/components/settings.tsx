@@ -2,8 +2,10 @@ import { useRef, useState } from 'react';
 import * as api from '../api';
 import { External, Gear } from '../icons';
 import { TRANSLATION_SHOWN, type TranslationShown } from '../translation';
+import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
 import { Modal } from './modal';
+import { DeleteRoom, Operators } from './operators';
 
 const SHOWN: Record<TranslationShown, { label: string; said: string }> = {
 	headline: { label: 'Headline', said: 'One direct line, as a peer would ask it out loud.' },
@@ -26,6 +28,7 @@ export function Settings({
 	fromStage?: boolean;
 }) {
 	const dialog = useRef<HTMLDialogElement>(null);
+	const me = useMe();
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -90,6 +93,7 @@ export function Settings({
 						<p className="text-xs opacity-70">This room has no translator configured.</p>
 					)}
 				</fieldset>
+				{me?.admin && <Operators roomId={roomId} />}
 				{error && (
 					<p role="alert" className="text-error text-sm">
 						{error}
@@ -106,6 +110,7 @@ export function Settings({
 						<External className="size-4" />
 					</a>
 				)}
+				{me?.admin && <DeleteRoom roomId={roomId} />}
 			</Modal>
 		</>
 	);

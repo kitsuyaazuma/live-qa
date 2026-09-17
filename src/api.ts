@@ -5,6 +5,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
 import { type Profile, signIn } from './accounts';
 import {
+	type App,
 	type Ctx,
 	currentAccount,
 	endSession,
@@ -14,7 +15,19 @@ import {
 	sessionSecret,
 } from './auth';
 import { roomLocationFromEnv } from './config';
-import { requireId, requireTarget, requireText } from './protocol';
+import { type Account, requireEmail, requireId, requireTarget, requireText } from './protocol';
+import {
+	addOperator,
+	createRoom,
+	deleteRoom,
+	findRoom,
+	isOperator,
+	isScratch,
+	listRooms,
+	operatorsOf,
+	removeOperator,
+	SCRATCH_PREFIX,
+} from './rooms';
 
 /**
  * One room is one object, saturating near a thousand requests a second, so the
@@ -25,7 +38,7 @@ const AUDIENCE_MAX_AGE = 2;
 /** Bounds one request body well above any question a room will store. */
 const BODY_MAX = 16 * 1024;
 
-type App = { Bindings: Env };
+const NO_STORE = { 'cache-control': 'no-store' };
 
 export const api = new Hono<App>();
 
@@ -88,13 +101,21 @@ function room(env: Env, roomId: string) {
 	return env.ROOM.getByName(id, locationHint ? { locationHint } : {});
 }
 
+/** The registry says which rooms exist; a scratch room always does. */
+async function known(env: Env, roomId: string | undefined): Promise<string> {
+	const id = checked(() => requireId(roomId ?? '', 'roomId'));
+	if (!(await findRoom(env.DB, id))) throw new HTTPException(404, { message: 'no such room' });
+	return id;
+}
+
 api.post('/api/rooms/:roomId/questions', async (c) => {
 	await limited(c.env.ASK_LIMIT, c);
 	const input = await body(c);
 	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
 	const text = checked(() => requireText(asString(input.text, 'text')));
+	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, c.req.param('roomId')).postQuestion({ id, text });
+	const result = await room(c.env, roomId).postQuestion({ id, text });
 	if ('status' in result) return c.json({ error: 'this room is full' }, 409);
 	return c.json(result, result.created ? 201 : 200);
 });
@@ -105,8 +126,9 @@ api.put('/api/rooms/:roomId/questions/:questionId/vote', async (c) => {
 	const questionId = checked(() => requireId(c.req.param('questionId'), 'questionId'));
 	const voterId = checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'));
 	const voted = asBoolean(input.voted, 'voted');
+	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, c.req.param('roomId')).setVote({
+	const result = await room(c.env, roomId).setVote({
 		questionId,
 		voterId,
 		voted,
@@ -123,14 +145,20 @@ api.get('/api/rooms/:roomId/questions', async (c) => {
 
 	let response = await cache.match(key);
 	if (!response) {
-		const snapshot = await room(c.env, c.req.param('roomId')).snapshot({ view: 'audience' });
-		response = new Response(JSON.stringify(snapshot), {
-			headers: {
-				'content-type': 'application/json',
-				etag: `"${snapshot.version}"`,
-				'cache-control': `public, max-age=${AUDIENCE_MAX_AGE}`,
-			},
-		});
+		const roomId = checked(() => requireId(c.req.param('roomId'), 'roomId'));
+		const headers = {
+			'content-type': 'application/json',
+			'cache-control': `public, max-age=${AUDIENCE_MAX_AGE}`,
+		};
+		if (await findRoom(c.env.DB, roomId)) {
+			const snapshot = await room(c.env, roomId).snapshot({ view: 'audience' });
+			response = new Response(JSON.stringify(snapshot), {
+				headers: { ...headers, etag: `"${snapshot.version}"` },
+			});
+		} else {
+			// Cached like a snapshot, so a crowd on a mistyped link stays off the registry.
+			response = new Response(JSON.stringify({ error: 'no such room' }), { status: 404, headers });
+		}
 		c.executionCtx.waitUntil(cache.put(key, response.clone()));
 	}
 
@@ -143,9 +171,6 @@ api.get('/api/rooms/:roomId/questions', async (c) => {
 	}
 	return response;
 });
-
-/** The prefix is the only guard, so a room an audience uses is out of reach. */
-const SCRATCH_PREFIX = 'scratch-';
 
 /** Where to send someone back to after the provider; carried in a cookie
  * because the provider hands back only its own parameters. */
@@ -232,25 +257,107 @@ api.post('/auth/logout', (c) => {
 api.get('/api/me', async (c) => {
 	const account = await currentAccount(c);
 	if (!account) return c.json({ error: 'not signed in' }, 401);
-	return c.json({ account, admin: isAdmin(c.env, account) }, 200, { 'cache-control': 'no-store' });
+	return c.json({ account, admin: isAdmin(c.env, account) }, 200, NO_STORE);
 });
 
-/** For now the operators of every room are the admins; rooms get their own next. */
-const operator: MiddlewareHandler<App> = async (c, next) => {
+/** Admins may run every room; anyone else needs their email on it. */
+function mayRun(env: Env, roomId: string, account: Account): Promise<boolean> {
+	return isAdmin(env, account) ? Promise.resolve(true) : isOperator(env.DB, roomId, account.email);
+}
+
+/** Signs the caller in for the handler, or answers in its place. */
+async function gate(
+	c: Ctx,
+	allowed: (account: Account) => Promise<boolean> | boolean,
+	denied: string,
+): Promise<Response | null> {
 	const account = await currentAccount(c);
 	if (!account) return c.json({ error: 'sign in first' }, 401);
-	if (!isAdmin(c.env, account)) return c.json({ error: 'not an operator of this room' }, 403);
-	return next();
+	if (!(await allowed(account))) return c.json({ error: denied }, 403);
+	c.set('account', account);
+	return null;
+}
+
+const session: MiddlewareHandler<App> = async (c, next) =>
+	(await gate(c, () => true, '')) ?? next();
+
+const admin: MiddlewareHandler<App> = async (c, next) =>
+	(await gate(c, (account) => isAdmin(c.env, account), 'admins only')) ?? next();
+
+const operator: MiddlewareHandler<App> = async (c, next) => {
+	const roomId = await known(c.env, c.req.param('roomId'));
+	return (
+		(await gate(c, (account) => mayRun(c.env, roomId, account), 'not an operator of this room')) ??
+		next()
+	);
 };
 
-api.delete('/api/rooms/:roomId', async (c) => {
-	const roomId = c.req.param('roomId');
-	if (!roomId.startsWith(SCRATCH_PREFIX)) {
-		return c.json({ error: `only ${SCRATCH_PREFIX}* rooms can be emptied` }, 403);
-	}
+api.post('/api/rooms', admin, async (c) => {
+	const input = await body(c);
+	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
+	if (isScratch(id)) fail(new Error(`${SCRATCH_PREFIX}* is kept for load tests`));
 
-	await room(c.env, roomId).reset();
-	return c.json({ reset: roomId });
+	const created = await createRoom(c.env.DB, id, c.get('account').id);
+	if (!created) return c.json({ error: 'that name is taken' }, 409);
+	return c.json({ room: created }, 201);
+});
+
+api.get('/api/rooms', session, async (c) => {
+	const account = c.get('account');
+	const rooms = await listRooms(c.env.DB, account.email, isAdmin(c.env, account));
+	return c.json({ rooms }, 200, NO_STORE);
+});
+
+api.get('/api/rooms/:roomId', async (c) => {
+	const id = checked(() => requireId(c.req.param('roomId'), 'roomId'));
+	const info = await findRoom(c.env.DB, id);
+	if (!info) return c.json({ error: 'no such room' }, 404);
+	const account = await currentAccount(c);
+	const runs = account ? await mayRun(c.env, id, account) : false;
+	return c.json({ room: info, operator: runs }, 200, NO_STORE);
+});
+
+/** Anyone may empty a scratch room, which is what load tests need. */
+api.delete(`/api/rooms/:roomId{${SCRATCH_PREFIX}.+}`, async (c) => {
+	const id = c.req.param('roomId');
+	await room(c.env, id).reset();
+	return c.json({ reset: id });
+});
+
+api.delete('/api/rooms/:roomId', admin, async (c) => {
+	const id = checked(() => requireId(c.req.param('roomId'), 'roomId'));
+	if (!(await deleteRoom(c.env.DB, id))) return c.json({ error: 'no such room' }, 404);
+	await room(c.env, id).reset();
+	return c.json({ deleted: id });
+});
+
+/** Scratch rooms pass `known` but have no row for operators to hang off. */
+async function registered(env: Env, roomId: string | undefined): Promise<string> {
+	const id = await known(env, roomId);
+	if (isScratch(id)) fail(new Error('scratch rooms have no operators'));
+	return id;
+}
+
+api.get('/api/rooms/:roomId/operators', admin, async (c) => {
+	const id = await registered(c.env, c.req.param('roomId'));
+	return c.json({ operators: await operatorsOf(c.env.DB, id) }, 200, NO_STORE);
+});
+
+api.put('/api/rooms/:roomId/operators/:email', admin, async (c) => {
+	const id = await registered(c.env, c.req.param('roomId'));
+	const email = checked(() => requireEmail(c.req.param('email')));
+	await addOperator(c.env.DB, id, email, c.get('account').id);
+	return c.json({ operators: await operatorsOf(c.env.DB, id) });
+});
+
+api.delete('/api/rooms/:roomId/operators/:email', admin, async (c) => {
+	const id = await registered(c.env, c.req.param('roomId'));
+	await removeOperator(
+		c.env.DB,
+		id,
+		checked(() => requireEmail(c.req.param('email'))),
+	);
+	return c.json({ operators: await operatorsOf(c.env.DB, id) });
 });
 
 function whole(value: string | undefined): number {

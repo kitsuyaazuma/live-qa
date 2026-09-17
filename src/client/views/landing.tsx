@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Host } from '../components/host';
 import { Page } from '../components/page';
 import { SignIn } from '../components/sign-in';
 import { Anonymous, ArrowLeft, People, Presentation } from '../icons';
@@ -48,24 +49,23 @@ export function Landing() {
 						Back
 					</button>
 
-					{role === 'host' && me === null ? (
-						<SignIn next="/" reason="Hosting takes an account." />
-					) : role === 'host' && me && !me.admin ? (
-						<p className="py-4">
-							Signed in as <span className="font-medium">{me.account.name}</span>. Only an admin can
-							host a room.
-						</p>
+					{role === 'host' ? (
+						me === undefined ? (
+							<span className="loading loading-spinner mx-auto my-10" />
+						) : me === null ? (
+							<SignIn next="/" reason="Hosting takes an account." />
+						) : (
+							<Host me={me} />
+						)
 					) : (
 						<form
 							onSubmit={(event) => {
 								event.preventDefault();
-								if (room) navigate(role === 'host' ? `/r/${room}/admin` : `/r/${room}`);
+								if (room) navigate(`/r/${room}`);
 							}}
 						>
 							<fieldset className="fieldset bg-base-100 border-base-content/25 rounded-box min-w-0 border p-4">
-								<legend className="fieldset-legend">
-									{role === 'join' ? 'Join a room' : 'Host a room'}
-								</legend>
+								<legend className="fieldset-legend">Join a room</legend>
 								<input
 									className="input w-full"
 									placeholder="Room name, such as keynote"
@@ -83,30 +83,19 @@ export function Landing() {
 										? `Everyone who types ${room} lands in the same room.`
 										: 'Letters and numbers. Everyone in the room uses the same name.'}
 								</p>
-
-								{role === 'join' && (
-									<div className="rounded-field border-base-content/25 mt-2 flex items-center gap-3 border p-3">
-										<div className="avatar avatar-placeholder">
-											<div className="bg-base-200 text-base-content w-10 rounded-full">
-												<Anonymous className="size-5" />
-											</div>
-										</div>
-										<div>
-											<p className="font-medium">Anonymous</p>
-											<p className="text-xs opacity-70">
-												No account, and nothing about you is kept.
-											</p>
+								<div className="rounded-field border-base-content/25 mt-2 flex items-center gap-3 border p-3">
+									<div className="avatar avatar-placeholder">
+										<div className="bg-base-200 text-base-content w-10 rounded-full">
+											<Anonymous className="size-5" />
 										</div>
 									</div>
-								)}
-								{role === 'host' && (
-									<p className="label text-xs whitespace-normal">
-										Moderation and translation are set inside the room, and can be changed any time.
-									</p>
-								)}
-
+									<div>
+										<p className="font-medium">Anonymous</p>
+										<p className="text-xs opacity-70">No account, and nothing about you is kept.</p>
+									</div>
+								</div>
 								<button type="submit" className="btn btn-primary mt-2 self-start" disabled={!room}>
-									{role === 'join' ? 'Join' : 'Continue'}
+									Join
 								</button>
 							</fieldset>
 						</form>

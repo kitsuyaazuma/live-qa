@@ -21,6 +21,7 @@ let served: Snapshot;
 /** What the post answered with, so a test can lag the read behind it. */
 let asked: Question | null;
 let voteResult: { status: string; version: number; votes: number } | null;
+let exists = true;
 
 /** Fake timers and the library's own waitFor deadlock, so time is moved by
  * hand: zero flushes the fetch that is already in flight. */
@@ -48,11 +49,13 @@ beforeEach(() => {
 	};
 	asked = null;
 	voteResult = null;
+	exists = true;
 
 	vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
 		const url = String(input);
 		const method = init?.method ?? 'GET';
 		if (method === 'GET') {
+			if (!exists) return Promise.resolve(json({ error: 'no such room' }, { status: 404 }));
 			const etag = `"${served.version}"`;
 			const offered = new Headers(init?.headers).get('if-none-match');
 			if (offered === etag) return Promise.resolve(new Response(null, { status: 304 }));
@@ -80,6 +83,18 @@ afterEach(() => {
 });
 
 describe('useRoom', () => {
+	it('says the room is missing and stops asking', async () => {
+		exists = false;
+		const spy = vi.spyOn(globalThis, 'fetch');
+		const { result } = renderHook(() => useRoom('ghost'));
+		await settle();
+		const calls = spy.mock.calls.length;
+		await settle(60000);
+
+		expect(result.current.missing).toBe(true);
+		expect(spy.mock.calls.length).toBe(calls);
+	});
+
 	it('shows an own question before the cached read catches up', async () => {
 		const { result } = renderHook(() => useRoom('keynote'));
 		await settle();

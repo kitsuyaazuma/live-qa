@@ -6,6 +6,7 @@ import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
 import { byNewest, byVotes } from '../order';
+import { Link } from '../router';
 import { useNow } from '../time';
 import { useFlip } from '../use-flip';
 import { useRoom } from '../use-room';
@@ -36,6 +37,22 @@ export function Participant({ roomId }: { roomId: string }) {
 		[room.questions, order, filter.passes],
 	);
 	useFlip(list);
+
+	if (room.missing) {
+		return (
+			<Page width="max-w-2xl">
+				<div className="flex flex-col items-center gap-2 py-16 text-center">
+					<p className="text-lg">
+						There is no room called <span className="font-medium">{roomId}</span>.
+					</p>
+					<p className="text-sm opacity-70">Check the link, or ask whoever runs the event.</p>
+					<Link to="/" className="btn btn-sm mt-4">
+						Home
+					</Link>
+				</div>
+			</Page>
+		);
+	}
 
 	return (
 		<Page width="max-w-2xl" connection={room.connection}>

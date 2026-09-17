@@ -1,8 +1,16 @@
-import type { Me, Question, Snapshot, StatusResult, VoteResult } from '../protocol';
+import type {
+	Me,
+	Operator,
+	Question,
+	RoomInfo,
+	Snapshot,
+	StatusResult,
+	VoteResult,
+} from '../protocol';
 
 const JSON_BODY = { 'content-type': 'application/json' };
 
-class ApiError extends Error {
+export class ApiError extends Error {
 	constructor(
 		readonly status: number,
 		message: string,
@@ -106,4 +114,51 @@ export async function me(): Promise<Me | null> {
 
 export async function signOut(): Promise<void> {
 	await fetch('/auth/logout', { method: 'POST' });
+}
+
+export interface RoomAccess {
+	room: RoomInfo;
+	/** Whether the account behind the cookie may run this room. */
+	operator: boolean;
+}
+
+/** Null when there is no such room. */
+export async function roomInfo(roomId: string): Promise<RoomAccess | null> {
+	const response = await fetch(rooms(roomId));
+	if (response.status === 404) return null;
+	if (!response.ok) throw new ApiError(response.status, await reason(response));
+	return (await response.json()) as RoomAccess;
+}
+
+export async function listRooms(): Promise<RoomInfo[]> {
+	return (await send<{ rooms: RoomInfo[] }>('/api/rooms', {})).rooms;
+}
+
+export async function createRoom(id: string): Promise<RoomInfo> {
+	const created = await send<{ room: RoomInfo }>('/api/rooms', {
+		method: 'POST',
+		headers: JSON_BODY,
+		body: JSON.stringify({ id }),
+	});
+	return created.room;
+}
+
+export function deleteRoom(roomId: string): Promise<{ deleted: string }> {
+	return send(rooms(roomId), { method: 'DELETE' });
+}
+
+export async function operators(roomId: string): Promise<Operator[]> {
+	return (await send<{ operators: Operator[] }>(`${rooms(roomId)}/operators`, {})).operators;
+}
+
+export async function setOperator(
+	roomId: string,
+	email: string,
+	present: boolean,
+): Promise<Operator[]> {
+	const changed = await send<{ operators: Operator[] }>(
+		`${rooms(roomId)}/operators/${encodeURIComponent(email)}`,
+		{ method: present ? 'PUT' : 'DELETE' },
+	);
+	return changed.operators;
 }

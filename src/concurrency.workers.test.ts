@@ -1,5 +1,7 @@
 import { env, exports } from 'cloudflare:workers';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { signIn } from './accounts';
+import { createRoom } from './rooms';
 
 /**
  * The room is one Durable Object instance, so these check the two things that
@@ -10,6 +12,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 const BURST = 50;
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
+const ROOMS = ['burstpost', 'burstread', 'burstvote', 'retryburst', 'samevoter'];
+
+beforeAll(async () => {
+	const admin = await signIn(env.DB, {
+		provider: 'google',
+		providerId: 'admin@example.com',
+		email: 'admin@example.com',
+		name: 'Admin',
+		avatar: null,
+	});
+	for (const id of ROOMS) await createRoom(env.DB, id, admin.id);
+});
 
 function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));

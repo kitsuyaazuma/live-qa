@@ -6,7 +6,9 @@ import type { Account } from './protocol';
 const SESSION = 'session';
 const SESSION_DAYS = 30;
 
-export type Ctx = Context<{ Bindings: Env }>;
+export type App = { Bindings: Env; Variables: { account: Account } };
+
+export type Ctx = Context<App>;
 
 /** Without a secret nothing can be signed, so signing in is off. */
 export function sessionSecret(env: Env): string | undefined {
