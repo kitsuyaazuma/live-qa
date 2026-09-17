@@ -3,7 +3,15 @@ import { googleAuth } from '@hono/oauth-providers/google';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
-import { type Profile, signIn } from './accounts';
+import {
+	avatarOf,
+	clearAvatar,
+	findAccount,
+	type Profile,
+	rename,
+	setAvatar,
+	signIn,
+} from './accounts';
 import {
 	type App,
 	type Ctx,
@@ -15,7 +23,14 @@ import {
 	sessionSecret,
 } from './auth';
 import { roomLocationFromEnv } from './config';
-import { type Account, requireEmail, requireId, requireTarget, requireText } from './protocol';
+import {
+	type Account,
+	requireEmail,
+	requireId,
+	requireName,
+	requireTarget,
+	requireText,
+} from './protocol';
 import {
 	addOperator,
 	createRoom,
@@ -48,7 +63,7 @@ function fail(cause: unknown): never {
 	});
 }
 
-function refuse(status: 413 | 429, message: string): never {
+function refuse(status: 413 | 415 | 429, message: string): never {
 	throw new HTTPException(status, { message });
 }
 
@@ -291,6 +306,48 @@ const operator: MiddlewareHandler<App> = async (c, next) => {
 		next()
 	);
 };
+
+/** The account as it now stands, for the routes that just changed it. */
+async function me(c: Ctx) {
+	const account = await findAccount(c.env.DB, c.get('account').id);
+	return c.json({ account, admin: account ? isAdmin(c.env, account) : false }, 200, NO_STORE);
+}
+
+/** The browser resizes first; this bounds what a hand-made request could store. */
+const AVATAR_MAX = 256 * 1024;
+const AVATAR_TYPES = new Set(['image/webp', 'image/png', 'image/jpeg']);
+
+api.patch('/api/me', session, async (c) => {
+	const input = await body(c);
+	const name = checked(() => requireName(asString(input.name, 'name')));
+	await rename(c.env.DB, c.get('account').id, name);
+	return me(c);
+});
+
+api.put('/api/me/avatar', session, async (c) => {
+	const type = c.req.header('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
+	if (!AVATAR_TYPES.has(type)) refuse(415, 'the picture must be webp, png or jpeg');
+	const bytes = await c.req.arrayBuffer();
+	if (bytes.byteLength === 0) fail(new Error('the picture is empty'));
+	if (bytes.byteLength > AVATAR_MAX) refuse(413, 'the picture is too large');
+	await setAvatar(c.env.DB, c.get('account').id, bytes, type);
+	return me(c);
+});
+
+api.delete('/api/me/avatar', session, async (c) => {
+	await clearAvatar(c.env.DB, c.get('account').id);
+	return me(c);
+});
+
+api.get('/api/avatars/:userId', async (c) => {
+	const picture = await avatarOf(c.env.DB, c.req.param('userId'));
+	if (!picture) return c.json({ error: 'no picture' }, 404);
+	return c.body(picture.bytes, 200, {
+		'content-type': picture.type,
+		'cache-control': 'public, max-age=31536000, immutable',
+		'x-content-type-options': 'nosniff',
+	});
+});
 
 api.post('/api/rooms', admin, async (c) => {
 	const input = await body(c);

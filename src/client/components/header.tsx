@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import * as api from '../api';
 import { Anonymous, Moon, Sun } from '../icons';
 import { Link } from '../router';
@@ -7,6 +7,7 @@ import { useMe } from '../use-me';
 import { Banner } from './banner';
 import { Connected, type State } from './connected';
 import { GHOST } from './ghost';
+import { Profile } from './profile';
 import { SignIn } from './sign-in';
 
 const THEMES: Theme[] = ['light', 'dark'];
@@ -83,6 +84,7 @@ function Dropdown({
 
 function Account() {
 	const me = useMe();
+	const profile = useRef<HTMLDialogElement>(null);
 
 	if (!me) {
 		return (
@@ -104,26 +106,34 @@ function Account() {
 
 	const { name, avatar } = me.account;
 	return (
-		<Dropdown
-			label={`Signed in as ${name}`}
-			panel="w-56 p-2"
-			trigger={
-				<div className={`avatar ${avatar ? '' : 'avatar-placeholder'}`}>
-					<div className="bg-base-200 text-base-content w-8 rounded-full">
-						{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : name.slice(0, 1)}
+		<>
+			<Dropdown
+				label={`Signed in as ${name}`}
+				panel="w-56 p-2"
+				trigger={
+					<div className={`avatar ${avatar ? '' : 'avatar-placeholder'}`}>
+						<div className="bg-base-200 text-base-content w-8 rounded-full">
+							{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : name.slice(0, 1)}
+						</div>
 					</div>
-				</div>
-			}
-		>
-			<ul className="menu w-full p-0">
-				<li className="menu-title truncate">{name}</li>
-				<li>
-					<button type="button" onClick={() => void api.signOut().then(() => location.reload())}>
-						Sign out
-					</button>
-				</li>
-			</ul>
-		</Dropdown>
+				}
+			>
+				<ul className="menu w-full p-0">
+					<li className="menu-title truncate">{name}</li>
+					<li>
+						<button type="button" onClick={() => profile.current?.showModal()}>
+							Edit profile
+						</button>
+					</li>
+					<li>
+						<button type="button" onClick={() => void api.signOut().then(() => location.reload())}>
+							Sign out
+						</button>
+					</li>
+				</ul>
+			</Dropdown>
+			<Profile ref={profile} me={me} />
+		</>
 	);
 }
 

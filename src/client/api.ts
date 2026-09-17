@@ -162,3 +162,19 @@ export async function setOperator(
 	);
 	return changed.operators;
 }
+
+export function rename(name: string): Promise<Me> {
+	return send('/api/me', { method: 'PATCH', headers: JSON_BODY, body: JSON.stringify({ name }) });
+}
+
+export function uploadAvatar(picture: Blob): Promise<Me> {
+	return send('/api/me/avatar', {
+		method: 'PUT',
+		headers: { 'content-type': picture.type },
+		body: picture,
+	});
+}
+
+export function dropAvatar(): Promise<Me> {
+	return send('/api/me/avatar', { method: 'DELETE' });
+}

@@ -78,6 +78,16 @@ export function requireTarget(value: string): Exclude<Status, 'pending'> {
 	return value as Exclude<Status, 'pending'>;
 }
 
+export const NAME_MAX = 40;
+
+export function requireName(value: string): string {
+	const name = value.trim().replace(/\s+/g, ' ');
+	if (name.length === 0 || name.length > NAME_MAX) {
+		throw new Error(`name must be 1 to ${NAME_MAX} characters`);
+	}
+	return name;
+}
+
 /** Only a shape check; the provider is who vouches for the address. */
 export function requireEmail(value: string): string {
 	const email = value.trim().toLowerCase();

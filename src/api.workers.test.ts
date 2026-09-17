@@ -243,6 +243,56 @@ describe('signing in', () => {
 	});
 });
 
+describe('profile', () => {
+	it('lets an account choose its name, within reason', async () => {
+		const me = await sessionFor('named@example.com');
+		const renamed = await call('/api/me', {
+			method: 'PATCH',
+			headers: { ...me, 'content-type': 'application/json' },
+			body: JSON.stringify({ name: '  Named   Person ' }),
+		});
+		const blank = await call('/api/me', {
+			method: 'PATCH',
+			headers: { ...me, 'content-type': 'application/json' },
+			body: JSON.stringify({ name: '   ' }),
+		});
+		const nobody = await call('/api/me', { method: 'PATCH', body: JSON.stringify({ name: 'X' }) });
+
+		expect(await renamed.json()).toMatchObject({ account: { name: 'Named Person' } });
+		expect([blank.status, nobody.status]).toEqual([400, 401]);
+	});
+
+	it('serves an uploaded picture from a versioned url, and drops it again', async () => {
+		const me = await sessionFor('pictured@example.com');
+		const put = (type: string, bytes: number) =>
+			call('/api/me/avatar', {
+				method: 'PUT',
+				headers: { ...me, 'content-type': type },
+				body: new Uint8Array(bytes),
+			});
+
+		const uploaded = (await put('image/png', 64).then((r) => r.json())) as {
+			account: { avatar: string };
+		};
+		const served = await call(uploaded.account.avatar);
+		const wrongType = await put('text/plain', 8);
+		const tooBig = await put('image/png', 300 * 1024);
+		const dropped = (await call('/api/me/avatar', { method: 'DELETE', headers: me }).then((r) =>
+			r.json(),
+		)) as { account: { avatar: string | null } };
+		const gone = await call(uploaded.account.avatar);
+
+		expect(uploaded.account.avatar).toMatch(/^\/api\/avatars\/[^?]+\?v=\d+$/);
+		expect(served.status).toBe(200);
+		expect(served.headers.get('content-type')).toBe('image/png');
+		expect(served.headers.get('cache-control')).toContain('immutable');
+		expect((await served.arrayBuffer()).byteLength).toBe(64);
+		expect([wrongType.status, tooBig.status]).toEqual([415, 413]);
+		expect(dropped.account.avatar).toBeNull();
+		expect(gone.status).toBe(404);
+	});
+});
+
 describe('operator api', () => {
 	it('turns away someone not signed in, and someone who is but is no admin', async () => {
 		const anonymous = await call('/api/rooms/gate/events');
