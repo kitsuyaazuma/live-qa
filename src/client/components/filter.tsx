@@ -15,15 +15,16 @@ function toggled<T>(chosen: Set<T>, value: T): Set<T> {
 	return next;
 }
 
-/** Or within a facet, and across them; a facet with nothing checked does not narrow. */
+/** Checked is shown: or within a facet, and across them. The last box in a
+ * facet cannot be cleared, so there is no empty view to explain. */
 export function useFilter(asked: Set<string>) {
 	const [progress, setProgress] = useState<Set<Progress>>(() => new Set(['open']));
-	const [asker, setAsker] = useState<Set<Asker>>(() => new Set());
+	const [asker, setAsker] = useState<Set<Asker>>(() => new Set(['you', 'others']));
 
 	const passes = (question: Question) =>
-		(progress.size === 0 || progress.has(question.status === 'answered' ? 'answered' : 'open')) &&
-		(asker.size === 0 || asker.has(asked.has(question.id) ? 'you' : 'others'));
-	const narrowed = progress.size !== 1 || !progress.has('open') || asker.size > 0;
+		progress.has(question.status === 'answered' ? 'answered' : 'open') &&
+		asker.has(asked.has(question.id) ? 'you' : 'others');
+	const narrowed = progress.size !== 1 || !progress.has('open') || asker.size !== 2;
 
 	return { passes, narrowed, progress, setProgress, asker, setAsker };
 }
@@ -53,6 +54,7 @@ export function Filter({ filter, asked }: { filter: ReturnType<typeof useFilter>
 								type="checkbox"
 								className="checkbox checkbox-sm"
 								checked={filter.progress.has(value)}
+								disabled={filter.progress.size === 1 && filter.progress.has(value)}
 								onChange={() => filter.setProgress(toggled(filter.progress, value))}
 							/>
 							{PROGRESS[value]}
@@ -67,7 +69,7 @@ export function Filter({ filter, asked }: { filter: ReturnType<typeof useFilter>
 								type="checkbox"
 								className="checkbox checkbox-sm"
 								checked={filter.asker.has(value)}
-								disabled={value === 'you' && asked === 0}
+								disabled={filter.asker.size === 1 && filter.asker.has(value)}
 								onChange={() => filter.setAsker(toggled(filter.asker, value))}
 							/>
 							{ASKER[value]}
