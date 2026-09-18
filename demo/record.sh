@@ -40,7 +40,7 @@ SESSION_SECRET="$SESSION_SECRET" ROOM="$ROOM" BASE_URL="$BASE" node demo/tour.mj
 LEAD=$(cat "$OUT/lead")
 encode() {
 	ffmpeg -hide_banner -loglevel error -y \
-		-loop 1 -framerate 25 -t 0.04 -i demo/tour.png -ss "$LEAD" -i "$OUT/tour.webm" \
+		-loop 1 -framerate 25 -t 0.04 -i "$OUT/still.png" -ss "$LEAD" -i "$OUT/tour.webm" \
 		-filter_complex "[0:v]scale=$1:flags=lanczos,setsar=1,format=yuv420p[s];[1:v]scale=$1:flags=lanczos,setsar=1,format=yuv420p[v];[s][v]concat=n=2:v=1:a=0" \
 		-c:v libx264 -crf "$2" -preset slow -movflags +faststart -an "$OUT/tour-$3.mp4"
 }
