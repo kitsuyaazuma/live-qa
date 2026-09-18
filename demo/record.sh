@@ -35,8 +35,9 @@ fi
 
 SESSION_SECRET="$SESSION_SECRET" ROOM="$ROOM" BASE_URL="$BASE" node demo/tour.mjs
 
-ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" \
+LEAD=$(cat "$OUT/lead")
+ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" -ss "$LEAD" \
 	-c:v libx264 -crf 21 -preset slow -pix_fmt yuv420p -movflags +faststart -an "$OUT/tour-1080.mp4"
-ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" -vf scale=1280:720:flags=lanczos \
+ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" -ss "$LEAD" -vf scale=1280:720:flags=lanczos \
 	-c:v libx264 -crf 23 -preset slow -pix_fmt yuv420p -movflags +faststart -an "$OUT/tour-720.mp4"
 ls -lh "$OUT/tour-1080.mp4" "$OUT/tour-720.mp4"

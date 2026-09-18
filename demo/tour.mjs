@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHmac } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { chromium } from 'playwright';
 
@@ -13,6 +13,7 @@ const GUEST_ID = process.env.GUEST_ID ?? 'demo-mika';
 const CANVAS_PORT = 8899;
 const SHOT = process.env.SHOT === '1';
 const OUT = new URL('./out/', import.meta.url).pathname;
+const STILL = new URL('./tour.png', import.meta.url).pathname;
 
 if (!SECRET) {
 	console.error('set SESSION_SECRET to what the dev server was given');
@@ -145,6 +146,7 @@ await context.addInitScript(() => {
 });
 
 const page = await context.newPage();
+const recording = Date.now();
 page.on('console', (m) => m.type() === 'error' && console.error('console:', m.text()));
 // The stage holds a stream open, so the network never goes idle.
 await page.goto(`http://localhost:${CANVAS_PORT}/`, { waitUntil: 'domcontentloaded' });
@@ -184,6 +186,8 @@ await S.getByText('Waiting for the first question.').waitFor();
 await O.getByText('Nothing here.').waitFor();
 const guest = await B.locator('body').evaluate(() => fetch('/api/me').then((r) => r.status));
 mark(`scene 0: four panes, empty room; phone B ${guest === 200 ? 'is signed in' : 'is anonymous'}`);
+// Up to here the video shows the canvas alone; the encode starts after it.
+writeFileSync(`${OUT}lead`, ((Date.now() - recording) / 1000 + 0.3).toFixed(1));
 
 if (SHOT) {
 	await page.screenshot({ path: `${OUT}layout.png` });
@@ -265,7 +269,9 @@ await beat(1200);
 await tap(O.locator(`li[data-key="${q1}"]`).getByLabel('Put on the stage'));
 await S.locator(`li[data-key="${q1}"].bg-primary`).waitFor({ timeout: 15000 });
 mark('scene 6: on the stage');
-await beat(3000);
+await beat(1500);
+await page.screenshot({ path: STILL });
+await beat(1500);
 await tap(S.locator(`li[data-key="${q1}"]`).getByLabel('Mark answered'));
 await beat(2500);
 
