@@ -165,3 +165,6 @@ dist
 .env*
 !.env.example
 .wrangler/
+
+# demo recordings
+demo/out/

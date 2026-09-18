@@ -71,6 +71,7 @@ cp .dev.vars.example .dev.vars   # fill in what you need
 pnpm run migrate
 pnpm dev                          # http://localhost:5173
 pnpm test
+pnpm run demo                     # records the tour into demo/out
 ```
 
 Translation calls the real Workers AI even locally: `wrangler login` first, or
