@@ -35,9 +35,15 @@ fi
 
 SESSION_SECRET="$SESSION_SECRET" ROOM="$ROOM" BASE_URL="$BASE" node demo/tour.mjs
 
+# The still goes in as the first frame: players show it as the thumbnail, and
+# at one frame it is gone before anyone sees it play.
 LEAD=$(cat "$OUT/lead")
-ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" -ss "$LEAD" \
-	-c:v libx264 -crf 21 -preset slow -pix_fmt yuv420p -movflags +faststart -an "$OUT/tour-1080.mp4"
-ffmpeg -hide_banner -loglevel error -y -i "$OUT/tour.webm" -ss "$LEAD" -vf scale=1280:720:flags=lanczos \
-	-c:v libx264 -crf 23 -preset slow -pix_fmt yuv420p -movflags +faststart -an "$OUT/tour-720.mp4"
+encode() {
+	ffmpeg -hide_banner -loglevel error -y \
+		-loop 1 -framerate 25 -t 0.04 -i demo/tour.png -ss "$LEAD" -i "$OUT/tour.webm" \
+		-filter_complex "[0:v]scale=$1:flags=lanczos,setsar=1,format=yuv420p[s];[1:v]scale=$1:flags=lanczos,setsar=1,format=yuv420p[v];[s][v]concat=n=2:v=1:a=0" \
+		-c:v libx264 -crf "$2" -preset slow -movflags +faststart -an "$OUT/tour-$3.mp4"
+}
+encode 1920:1080 21 1080
+encode 1280:720 23 720
 ls -lh "$OUT/tour-1080.mp4" "$OUT/tour-720.mp4"
