@@ -3,6 +3,7 @@ import { translationSettingsFromEnv } from './config';
 import {
 	type Asker,
 	type AskResult,
+	offScreen,
 	type Question,
 	type RoomSettings,
 	requireId,
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS questions (
 	translation TEXT,
 	votes INTEGER NOT NULL DEFAULT 0 CHECK (votes >= 0),
 	status TEXT NOT NULL DEFAULT 'pending'
-		CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed')),
+		CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed', 'archived')),
 	version INTEGER NOT NULL,
 	created_at INTEGER NOT NULL,
 	asker TEXT
@@ -156,6 +157,18 @@ export class Room extends DurableObject<Env> {
 			}
 			if (!columns('room').includes('open')) {
 				sql.exec('ALTER TABLE room ADD COLUMN open INTEGER NOT NULL DEFAULT 1');
+			}
+			// SQLite cannot widen a check constraint, so a table from before `archived`
+			// is rebuilt; its indexes go with the old table and the schema puts them back.
+			const definition = sql
+				.exec<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'questions'")
+				.one().sql;
+			if (!definition.includes("'archived'")) {
+				sql.exec('ALTER TABLE questions RENAME TO questions_old');
+				sql.exec(SCHEMA);
+				sql.exec(`INSERT INTO questions (${COLUMNS}) SELECT ${COLUMNS} FROM questions_old`);
+				sql.exec('DROP TABLE questions_old');
+				sql.exec(SCHEMA);
 			}
 			const row = sql
 				.exec<{ version: number; moderated: number; open: number }>(
@@ -335,6 +348,23 @@ export class Room extends DurableObject<Env> {
 		}
 	}
 
+	/** Everything leaves the screens at once; the export still has it all. */
+	async archive(): Promise<{ version: number; archived: number }> {
+		const sql = this.ctx.storage.sql;
+		const archived = sql
+			.exec<{ n: number }>(`SELECT count(*) AS n FROM questions WHERE status != 'archived'`)
+			.one().n;
+		if (archived > 0) {
+			const next = this.version + 1;
+			sql.exec(
+				`UPDATE questions SET status = 'archived', version = ? WHERE status != 'archived'`,
+				next,
+			);
+			this.commit(next);
+		}
+		return { version: this.version, archived };
+	}
+
 	/** Pending questions stay pending: switching off must not publish them. */
 	async setModeration(enabled: boolean): Promise<RoomSettings> {
 		if (enabled !== this.moderated) {
@@ -411,9 +441,9 @@ export class Room extends DurableObject<Env> {
 	}
 
 	/**
-	 * Dismissed questions are blanked rather than dropped, so a diff can still
-	 * tell a screen to take one down; pending ones are dropped outright from the
-	 * audience view, which is safe only because nothing returns to `pending`.
+	 * Dismissed and archived questions are blanked rather than dropped, so a diff
+	 * can still tell a screen to take one down; pending ones are dropped outright
+	 * from the audience view, which is safe only because nothing returns to `pending`.
 	 *
 	 * The settings change no row, so they ride in the payload, not the diff.
 	 */
@@ -430,7 +460,7 @@ export class Room extends DurableObject<Env> {
 
 		const questions = rows.map((row) => {
 			const question = toQuestion(row);
-			return audience && question.status === 'dismissed' ? withoutContent(question) : question;
+			return audience && offScreen(question.status) ? withoutContent(question) : question;
 		});
 
 		return { ...this.settings(), translates: this.translation !== null, questions };
@@ -471,7 +501,7 @@ export class Room extends DurableObject<Env> {
 		return this.ctx.storage.sql
 			.exec<{ id: string; text: string }>(
 				`SELECT id, text FROM questions
-				 WHERE status != 'dismissed'
+				 WHERE status NOT IN ('dismissed', 'archived')
 				   AND (translation IS NULL
 				        OR (json_valid(translation)
 				            AND json_extract(translation, '$.ok') = 0

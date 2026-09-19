@@ -105,6 +105,10 @@ export function setModeration(roomId: string, enabled: boolean): Promise<RoomSet
 	});
 }
 
+export function archive(roomId: string): Promise<{ version: number; archived: number }> {
+	return send(`${rooms(roomId)}/archive`, { method: 'POST' });
+}
+
 export function setOpen(roomId: string, open: boolean): Promise<RoomSettings> {
 	return send(rooms(roomId), {
 		method: 'PATCH',

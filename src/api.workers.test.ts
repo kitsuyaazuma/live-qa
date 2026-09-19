@@ -27,6 +27,7 @@ async function sessionFor(email: string): Promise<Record<string, string>> {
 /** Every registered room these tests reach for; the rest are scratch rooms. */
 const ROOMS = [
 	'named',
+	'archive',
 	'badstatus',
 	'bloat',
 	'bust',
@@ -252,6 +253,18 @@ describe('export', () => {
 		expect(anonymous.status).toBe(401);
 		expect(csv.headers.get('content-disposition')).toBe('attachment; filename="export.csv"');
 		expect(text.split('\r\n')[1]).toMatch(new RegExp(`^q1,.*,dismissed,0,,${TEXT},,$`));
+	});
+});
+
+describe('next talk', () => {
+	it('lets an operator archive the room, and nobody else', async () => {
+		await post('archive', 'q1');
+
+		const anonymous = await call('/api/rooms/archive/archive', { method: 'POST' });
+		const cleared = await call('/api/rooms/archive/archive', { method: 'POST', headers: ADMIN });
+
+		expect(anonymous.status).toBe(401);
+		expect(await cleared.json()).toEqual({ version: 2, archived: 1 });
 	});
 });
 

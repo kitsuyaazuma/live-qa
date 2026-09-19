@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Question, Snapshot } from '../protocol';
+import { offScreen, type Question, type Snapshot } from '../protocol';
 import * as api from './api';
 import { recall, remember, voterId } from './storage';
 
@@ -140,7 +140,7 @@ export function useRoom(roomId: string): RoomState {
 		const version = snapshot?.version ?? 0;
 		const seen = new Set((snapshot?.questions ?? []).map((question) => question.id));
 		const live = (snapshot?.questions ?? [])
-			.filter((question) => question.status !== 'dismissed')
+			.filter((question) => !offScreen(question.status))
 			.map((question) => withEcho(question, echoes, version));
 		// Own questions come from the post's answer until the cached read catches up.
 		return [...live, ...mine.filter((question) => !seen.has(question.id))];

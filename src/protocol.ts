@@ -1,9 +1,21 @@
 /** The wire contract. Nothing here imports a worker module, so the client can
  * be type checked against it. */
 
-export const STATUSES = ['pending', 'published', 'answering', 'answered', 'dismissed'] as const;
+export const STATUSES = [
+	'pending',
+	'published',
+	'answering',
+	'answered',
+	'dismissed',
+	'archived',
+] as const;
 
 export type Status = (typeof STATUSES)[number];
+
+/** Off every audience screen. The row still travels, blank, so a screen can drop its own copy. */
+export function offScreen(status: Status): boolean {
+	return status === 'dismissed' || status === 'archived';
+}
 
 /** Null, on `Question`, means nothing has tried to translate it yet. */
 export type StoredTranslation =

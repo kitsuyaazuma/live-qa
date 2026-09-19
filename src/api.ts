@@ -459,6 +459,10 @@ api.get('/api/rooms/:roomId/export', operator, async (c) => {
 	});
 });
 
+api.post('/api/rooms/:roomId/archive', operator, async (c) =>
+	c.json(await room(c.env, c.req.param('roomId')).archive()),
+);
+
 api.patch('/api/rooms/:roomId/questions/:questionId', operator, async (c) => {
 	const input = await body(c);
 	const id = checked(() => requireId(c.req.param('questionId'), 'questionId'));

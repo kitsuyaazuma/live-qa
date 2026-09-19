@@ -69,8 +69,10 @@ account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
 Admins can do everything an operator can. In the room's settings, **Review
 before showing** holds new questions until an operator releases them, and
 **Accepting questions** switched off closes the room between talks: the list
-stays up, votes still count, nothing new comes in. **Export** downloads every
-question, with votes, status and translation, as CSV.
+stays up, votes still count, nothing new comes in. **Next talk** archives every
+question, so the screens start empty for the next speaker. **Export** downloads
+every question, archived ones included, with votes, status and translation, as
+CSV.
 
 ## Develop
 

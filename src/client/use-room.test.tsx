@@ -169,7 +169,7 @@ describe('useRoom', () => {
 		expect(result.current.error).not.toBeNull();
 	});
 
-	it('leaves a dismissed question off the screen', async () => {
+	it('leaves dismissed and archived questions off the screen', async () => {
 		served = {
 			version: 5,
 			moderated: false,
@@ -178,6 +178,7 @@ describe('useRoom', () => {
 			questions: [
 				question({ id: 'kept' }),
 				question({ id: 'gone', status: 'dismissed', text: '' }),
+				question({ id: 'past', status: 'archived', text: '' }),
 			],
 		};
 		const { result } = renderHook(() => useRoom('keynote'));

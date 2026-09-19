@@ -294,6 +294,65 @@ describe('Room', () => {
 		expect(next.version).toBe(3);
 	});
 
+	it('archives every question at once and blanks them for the audience', async () => {
+		const r = room('archive');
+		await r.postQuestion({ id: 'q1', text: TEXT });
+		await r.postQuestion({ id: 'q2', text: TEXT });
+		await r.setStatus({ id: 'q1', status: 'answering' });
+
+		const cleared = await r.archive();
+		const again = await r.archive();
+		const fresh = stored(await r.postQuestion({ id: 'q3', text: TEXT }));
+
+		expect(cleared).toEqual({ version: 4, archived: 2 });
+		expect(again).toEqual({ version: 4, archived: 0 });
+		expect(fresh.question.status).toBe('published');
+		const seen = (await r.snapshot({ view: 'audience' })).questions;
+		expect(seen.map((q) => [q.id, q.status, q.text])).toEqual([
+			['q1', 'archived', ''],
+			['q2', 'archived', ''],
+			['q3', 'published', TEXT],
+		]);
+	});
+
+	it('rebuilds a questions table from before archiving existed', async () => {
+		const r = room('legacy');
+		await r.postQuestion({ id: 'q1', text: TEXT });
+		await runInDurableObject(r, (_instance, state) => {
+			state.storage.sql.exec(`
+				ALTER TABLE questions RENAME TO questions_then;
+				CREATE TABLE questions (
+					id TEXT PRIMARY KEY,
+					text TEXT NOT NULL,
+					translation TEXT,
+					votes INTEGER NOT NULL DEFAULT 0 CHECK (votes >= 0),
+					status TEXT NOT NULL DEFAULT 'pending'
+						CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed')),
+					version INTEGER NOT NULL,
+					created_at INTEGER NOT NULL,
+					asker TEXT
+				) STRICT;
+				INSERT INTO questions SELECT * FROM questions_then;
+				DROP TABLE questions_then;`);
+		});
+		await evictDurableObject(r);
+
+		const revived = room('legacy');
+		const cleared = await revived.archive();
+		const indexes = await runInDurableObject(revived, (_instance, state) =>
+			state.storage.sql
+				.exec<{ name: string }>(
+					"SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'questions' AND sql IS NOT NULL",
+				)
+				.toArray()
+				.map((row) => row.name)
+				.sort(),
+		);
+
+		expect(cleared).toEqual({ version: 2, archived: 1 });
+		expect(indexes).toEqual(['questions_answering', 'questions_version']);
+	});
+
 	it('keeps dismissed text for the operator and withholds it from the audience', async () => {
 		const r = room('dismiss');
 		await r.postQuestion({ id: 'q1', text: TEXT });

@@ -7,6 +7,50 @@ import type { StreamState } from '../use-stream';
 import { Modal } from './modal';
 import { DeleteRoom, Operators } from './operators';
 
+/** Two steps, like deleting the room: one tap here empties every screen in the hall. */
+function NextTalk({ roomId, onError }: { roomId: string; onError: (said: string) => void }) {
+	const [arming, setArming] = useState(false);
+	const [busy, setBusy] = useState(false);
+
+	async function clear() {
+		setBusy(true);
+		try {
+			await api.archive(roomId);
+			setArming(false);
+		} catch (cause) {
+			onError(cause instanceof Error ? cause.message : 'that did not go through');
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<div className="flex flex-col gap-2">
+			<p className="text-base">
+				Next talk
+				<span className="block text-xs opacity-70">
+					Takes every question off the screens. The export keeps them.
+				</span>
+			</p>
+			{arming ? (
+				<div className="flex flex-wrap items-center gap-2 text-sm">
+					<span>Archive every question in this room?</span>
+					<button type="button" className="btn btn-sm" disabled={busy} onClick={clear}>
+						Archive
+					</button>
+					<button type="button" className="btn btn-ghost btn-sm" onClick={() => setArming(false)}>
+						Keep
+					</button>
+				</div>
+			) : (
+				<button type="button" className="btn btn-sm self-start" onClick={() => setArming(true)}>
+					Clear the room
+				</button>
+			)}
+		</div>
+	);
+}
+
 const SHOWN: Record<TranslationShown, { label: string; said: string }> = {
 	headline: { label: 'Headline', said: 'One direct line, as a peer would ask it out loud.' },
 	full: { label: 'Full', said: 'Everything the asker wrote, translated faithfully.' },
@@ -83,6 +127,7 @@ export function Settings({
 						onChange={(event) => void change(() => api.setModeration(roomId, event.target.checked))}
 					/>
 				</label>
+				<NextTalk roomId={roomId} onError={setError} />
 				<fieldset className="fieldset gap-1 p-0" disabled={!room.translates}>
 					<legend className="px-0 text-base font-normal">
 						Translation shown

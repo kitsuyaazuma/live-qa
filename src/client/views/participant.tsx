@@ -19,6 +19,7 @@ const RANK: Record<Status, number> = {
 	pending: 1,
 	answered: 2,
 	dismissed: 3,
+	archived: 3,
 };
 
 function ordered(questions: Question[], order: Order): Question[] {
