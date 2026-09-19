@@ -66,13 +66,18 @@ account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
 | Operator | `/r/example/present` | on the projector: QR code, address, top questions by votes                        |
 | Audience | `/r/example`         | asks, anonymously or under their name; upvotes                                    |
 
-Admins can do everything an operator can. In the room's settings, **Review
-before showing** holds new questions until an operator releases them, and
-**Accepting questions** switched off closes the room between talks: the list
-stays up, votes still count, nothing new comes in. **Next talk** archives every
-question, so the screens start empty for the next speaker. **Export** downloads
-every question, archived ones included, with votes, status and translation, as
-CSV.
+Admins can do everything an operator can. The gear on the admin and present
+screens opens the room's settings:
+
+| Setting                  | Does                                                                                      |
+|--------------------------|-------------------------------------------------------------------------------------------|
+| **Accepting questions**  | off closes the room between talks: the list stays up, votes still count, nothing new comes in |
+| **Review before showing** | holds new questions until an operator releases them                                      |
+| **Next talk**            | archives every question, so the screens start empty for the next speaker                  |
+| **Translation shown**    | headline, full or none, on this screen only                                               |
+| **Export**               | downloads every question, archived ones included, with votes, status and translation, as CSV |
+| **Operators**            | admins name who may run the room                                                          |
+| **Delete this room**     | admins only; takes every question with it                                                 |
 
 ## Develop
 
