@@ -2,6 +2,7 @@ import {
 	Check,
 	Eye,
 	EyeOff,
+	Hourglass,
 	type LucideIcon,
 	Pin,
 	PinOff,
@@ -137,7 +138,10 @@ export function StageCard({
 				{admin && (
 					<div className="flex flex-wrap items-center gap-2">
 						{waiting && (
-							<span className="badge badge-warning badge-soft badge-sm">Waiting for review</span>
+							<span className="badge badge-warning badge-soft badge-sm gap-1">
+								<Hourglass className="size-3" />
+								Waiting for review
+							</span>
 						)}
 						<TranslationState question={question} translates={translates} />
 						{now !== undefined && (
