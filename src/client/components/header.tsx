@@ -1,6 +1,6 @@
+import { HatGlasses as Anonymous, Moon, Sun } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import * as api from '../api';
-import { Anonymous, Moon, Sun } from '../icons';
 import { Link } from '../router';
 import { rememberTheme, type Theme, themePreference } from '../storage';
 import { useMe } from '../use-me';
@@ -41,7 +41,7 @@ function ThemeToggle() {
 					setChosen(next);
 				}}
 			>
-				{shown === 'dark' ? <Sun /> : <Moon />}
+				{shown === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
 			</button>
 		</>
 	);

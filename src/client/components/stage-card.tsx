@@ -1,5 +1,14 @@
+import {
+	Check,
+	Eye,
+	EyeOff,
+	type LucideIcon,
+	Pin,
+	PinOff,
+	RotateCcw,
+	ThumbsUp,
+} from 'lucide-react';
 import type { Question, Status, Target } from '../../protocol';
-import { Check, Eye, EyeOff, Pin, PinOff, ThumbsUp, Undo } from '../icons';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
 import { Byline } from './byline';
@@ -8,7 +17,7 @@ import { GHOST } from './ghost';
 interface Move {
 	to: Target;
 	label: string;
-	icon: typeof Pin;
+	icon: LucideIcon;
 }
 
 /** An answered question goes back to the list, not onto the stage: the usual
@@ -24,7 +33,7 @@ function moves(status: Status, admin: boolean): Move[] {
 		found.push({ to: 'answered', label: 'Mark answered', icon: Check });
 	}
 	if (status === 'answered') {
-		found.push({ to: 'published', label: 'Back to the live list', icon: Undo });
+		found.push({ to: 'published', label: 'Back to the live list', icon: RotateCcw });
 	}
 	if (admin) {
 		if (status === 'pending' || status === 'dismissed') {
@@ -113,7 +122,7 @@ export function StageCard({
 								disabled={busy}
 								onClick={() => onMove(move.to)}
 							>
-								<move.icon />
+								<move.icon className="size-5" />
 							</button>
 						))}
 						<span

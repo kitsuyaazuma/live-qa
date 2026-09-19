@@ -1,5 +1,5 @@
+import { ThumbsUp } from 'lucide-react';
 import type { Question } from '../../protocol';
-import { ThumbsUp } from '../icons';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
 import { Byline } from './byline';

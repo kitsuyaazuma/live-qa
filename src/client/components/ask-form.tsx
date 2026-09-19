@@ -1,6 +1,6 @@
+import { HatGlasses as Anonymous, Send } from 'lucide-react';
 import { useState } from 'react';
 import { TEXT_MAX } from '../../protocol';
-import { Anonymous, Send } from '../icons';
 import { useMe } from '../use-me';
 
 /** Shown from four fifths of the limit: a counter on an empty box is nagging. */

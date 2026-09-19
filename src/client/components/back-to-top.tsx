@@ -1,5 +1,5 @@
+import { ArrowUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { ArrowUp } from '../icons';
 
 export function BackToTop() {
 	const [shown, setShown] = useState(false);
@@ -20,7 +20,7 @@ export function BackToTop() {
 				aria-label="Back to the top"
 				onClick={() => scrollTo({ top: 0, behavior: 'smooth' })}
 			>
-				<ArrowUp />
+				<ArrowUp className="size-5" />
 			</button>
 		</div>
 	);

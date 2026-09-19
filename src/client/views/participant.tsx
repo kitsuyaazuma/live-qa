@@ -1,3 +1,4 @@
+import { Megaphone } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
 import { AskForm } from '../components/ask-form';
@@ -5,7 +6,6 @@ import { BackToTop } from '../components/back-to-top';
 import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
-import { Megaphone } from '../icons';
 import { byNewest, byVotes } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';

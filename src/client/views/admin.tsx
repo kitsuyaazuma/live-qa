@@ -1,3 +1,4 @@
+import { Presentation } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import type { Question, Status, Target } from '../../protocol';
 import * as api from '../api';
@@ -6,7 +7,6 @@ import { Page } from '../components/page';
 import { Settings } from '../components/settings';
 import { Share } from '../components/share';
 import { StageCard } from '../components/stage-card';
-import { Presentation } from '../icons';
 import { byOldest, forStage } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -73,7 +73,7 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 			<div className="flex items-center gap-2">
 				<Share roomId={roomId} />
 				<Link to={`/r/${roomId}/present`} className="btn btn-primary gap-2">
-					<Presentation />
+					<Presentation className="size-5" />
 					Present
 				</Link>
 				<span className="ml-auto flex items-center gap-2">

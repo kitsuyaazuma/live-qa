@@ -1,4 +1,4 @@
-import { External } from '../icons';
+import { ExternalLink } from 'lucide-react';
 
 const SOURCE = 'github.com/kitsuyaazuma/live-qa';
 
@@ -14,7 +14,7 @@ export function Credit() {
 					rel="noreferrer"
 				>
 					{SOURCE}
-					<External className="size-3.5" />
+					<ExternalLink className="size-3.5" />
 				</a>
 			</aside>
 		</footer>

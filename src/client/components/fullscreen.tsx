@@ -1,5 +1,5 @@
+import { Maximize, Minimize } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Expand, Shrink } from '../icons';
 
 export function Fullscreen({ className }: { className?: string }) {
 	const [full, setFull] = useState(() => document.fullscreenElement !== null);
@@ -21,7 +21,7 @@ export function Fullscreen({ className }: { className?: string }) {
 				).catch(() => {})
 			}
 		>
-			{full ? <Shrink /> : <Expand />}
+			{full ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
 		</button>
 	);
 }

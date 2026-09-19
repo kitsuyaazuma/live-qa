@@ -1,8 +1,8 @@
+import { HatGlasses as Anonymous, ArrowLeft, Presentation, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Host } from '../components/host';
 import { Page } from '../components/page';
 import { SignIn } from '../components/sign-in';
-import { Anonymous, ArrowLeft, People, Presentation } from '../icons';
 import { navigate } from '../router';
 import { slug } from '../slug';
 import { useMe } from '../use-me';
@@ -24,7 +24,7 @@ export function Landing() {
 						className="btn h-auto flex-col gap-2 py-8"
 						onClick={() => setRole('join')}
 					>
-						<People className="size-10" />
+						<Users className="size-10" />
 						<span className="text-lg">Join</span>
 						<span className="text-xs font-normal opacity-70">Ask and upvote questions</span>
 					</button>

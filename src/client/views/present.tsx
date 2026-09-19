@@ -1,4 +1,5 @@
 import branding from '@branding/branding.json';
+import { Megaphone } from 'lucide-react';
 import { lazy, Suspense, useRef } from 'react';
 import * as api from '../api';
 import { Banner } from '../components/banner';
@@ -6,7 +7,6 @@ import { Fullscreen } from '../components/fullscreen';
 import { Operator } from '../components/operator';
 import { Settings } from '../components/settings';
 import { StageCard } from '../components/stage-card';
-import { Megaphone } from '../icons';
 import { forStage } from '../order';
 import { useTranslationShown } from '../translation';
 import { useFlip } from '../use-flip';

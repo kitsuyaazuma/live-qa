@@ -1,7 +1,7 @@
+import { Download, ExternalLink, Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NOTICE_MAX } from '../../protocol';
 import * as api from '../api';
-import { Download, External, Gear } from '../icons';
 import { TRANSLATION_SHOWN, type TranslationShown } from '../translation';
 import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
@@ -153,7 +153,7 @@ export function Settings({
 				aria-label="Settings"
 				onClick={() => dialog.current?.showModal()}
 			>
-				<Gear />
+				<SettingsIcon className="size-5" />
 			</button>
 			<Modal ref={dialog} title="Settings">
 				<label className="flex cursor-pointer items-center justify-between gap-3">
@@ -241,7 +241,7 @@ export function Settings({
 						className="btn btn-sm self-start gap-1.5"
 					>
 						Open the admin in a new tab
-						<External className="size-4" />
+						<ExternalLink className="size-4" />
 					</a>
 				)}
 				{me?.admin && <DeleteRoom roomId={roomId} />}

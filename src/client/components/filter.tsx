@@ -1,6 +1,6 @@
+import { Funnel } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Question } from '../../protocol';
-import { Funnel } from '../icons';
 import { Modal } from './modal';
 
 type Progress = 'open' | 'answered';
@@ -42,7 +42,7 @@ export function Filter({ filter, asked }: { filter: ReturnType<typeof useFilter>
 					aria-label="Filter"
 					onClick={() => dialog.current?.showModal()}
 				>
-					<Funnel />
+					<Funnel className="size-5" />
 				</button>
 			</div>
 			<Modal ref={dialog} title="Filter" className="modal-bottom sm:modal-middle">

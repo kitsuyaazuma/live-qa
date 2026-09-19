@@ -1,5 +1,5 @@
+import { Copy, Download, Share2 as ShareIcon } from 'lucide-react';
 import { lazy, Suspense, useRef, useState } from 'react';
-import { Copy, Download, Share as ShareIcon } from '../icons';
 import { Modal } from './modal';
 
 const Qr = lazy(() => import('./qr'));
@@ -43,7 +43,7 @@ export function Share({ roomId }: { roomId: string }) {
 	return (
 		<>
 			<button type="button" className="btn gap-2" onClick={() => dialog.current?.showModal()}>
-				<ShareIcon />
+				<ShareIcon className="size-5" />
 				Share
 			</button>
 			<Modal ref={dialog} title="Share this room">
