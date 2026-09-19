@@ -66,8 +66,10 @@ account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
 | Operator | `/r/example/present` | on the projector: QR code, address, top questions by votes                        |
 | Audience | `/r/example`         | asks, anonymously or under their name; upvotes                                    |
 
-Admins can do everything an operator can. **Review before showing**, in the
-room's settings, holds new questions until an operator releases them.
+Admins can do everything an operator can. In the room's settings, **Review
+before showing** holds new questions until an operator releases them, and
+**Accepting questions** switched off closes the room between talks: the list
+stays up, votes still count, nothing new comes in.
 
 ## Develop
 

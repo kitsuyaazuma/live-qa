@@ -17,6 +17,7 @@ type Echo = { votes: number; version: number };
 interface RoomState {
 	questions: Question[];
 	moderated: boolean;
+	open: boolean;
 	connection: Connection;
 	asked: Set<string>;
 	voted: Set<string>;
@@ -148,6 +149,8 @@ export function useRoom(roomId: string): RoomState {
 	return {
 		questions,
 		moderated: snapshot?.moderated ?? false,
+		// Open until told otherwise, so the form does not flash a closed notice on load.
+		open: snapshot?.open ?? true,
 		connection,
 		asked,
 		voted,

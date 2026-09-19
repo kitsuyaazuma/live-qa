@@ -76,7 +76,8 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 					<Presentation />
 					Present
 				</Link>
-				<span className="ml-auto">
+				<span className="ml-auto flex items-center gap-2">
+					{!room.open && <span className="badge badge-soft">closed</span>}
 					<Settings roomId={roomId} room={room} shown={shown} onShown={setShown} />
 				</span>
 			</div>

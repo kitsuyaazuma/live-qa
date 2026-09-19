@@ -4,6 +4,7 @@ import {
 	type Asker,
 	type AskResult,
 	type Question,
+	type RoomSettings,
 	requireId,
 	requireTarget,
 	requireText,
@@ -66,7 +67,8 @@ CREATE TABLE IF NOT EXISTS votes (
 CREATE TABLE IF NOT EXISTS room (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	version INTEGER NOT NULL DEFAULT 0,
-	moderated INTEGER NOT NULL DEFAULT 0
+	moderated INTEGER NOT NULL DEFAULT 0,
+	open INTEGER NOT NULL DEFAULT 1
 ) STRICT;
 
 INSERT OR IGNORE INTO room (id, version, moderated) VALUES (1, 0, 0);
@@ -132,6 +134,7 @@ function toQuestion(row: QuestionRow): Question {
 export class Room extends DurableObject<Env> {
 	private version = 0;
 	private moderated = false;
+	private open = true;
 	private readonly streams = new Set<Stream>();
 	private beat: ReturnType<typeof setInterval> | undefined;
 	private readonly translation: TranslationSettings | null;
@@ -142,19 +145,26 @@ export class Room extends DurableObject<Env> {
 		ctx.blockConcurrencyWhile(async () => {
 			const sql = ctx.storage.sql;
 			sql.exec(SCHEMA);
-			// Rooms from before names were kept get the column on their next wake.
-			const columns = sql
-				.exec<{ name: string }>("SELECT name FROM pragma_table_info('questions')")
-				.toArray()
-				.map((column) => column.name);
-			if (!columns.includes('asker')) sql.exec('ALTER TABLE questions ADD COLUMN asker TEXT');
+			// Rooms from before a column existed get it on their next wake.
+			const columns = (table: string) =>
+				sql
+					.exec<{ name: string }>(`SELECT name FROM pragma_table_info('${table}')`)
+					.toArray()
+					.map((column) => column.name);
+			if (!columns('questions').includes('asker')) {
+				sql.exec('ALTER TABLE questions ADD COLUMN asker TEXT');
+			}
+			if (!columns('room').includes('open')) {
+				sql.exec('ALTER TABLE room ADD COLUMN open INTEGER NOT NULL DEFAULT 1');
+			}
 			const row = sql
-				.exec<{ version: number; moderated: number }>(
-					'SELECT version, moderated FROM room WHERE id = 1',
+				.exec<{ version: number; moderated: number; open: number }>(
+					'SELECT version, moderated, open FROM room WHERE id = 1',
 				)
 				.one();
 			this.version = row.version;
 			this.moderated = row.moderated === 1;
+			this.open = row.open === 1;
 			// The question and its alarm are separate writes, so one can arrive alone.
 			if (this.untranslated(1).length > 0) await this.scheduleTranslation();
 		});
@@ -171,8 +181,9 @@ export class Room extends DurableObject<Env> {
 		const sql = this.ctx.storage.sql;
 		const next = this.version + 1;
 
-		if (!this.exists(id) && this.count() >= QUESTIONS_MAX) {
-			return { status: 'room-full', version: this.version };
+		if (!this.exists(id)) {
+			if (!this.open) return { status: 'room-closed', version: this.version };
+			if (this.count() >= QUESTIONS_MAX) return { status: 'room-full', version: this.version };
 		}
 
 		const created =
@@ -325,15 +336,23 @@ export class Room extends DurableObject<Env> {
 	}
 
 	/** Pending questions stay pending: switching off must not publish them. */
-	async setModeration(enabled: boolean): Promise<{ version: number; moderated: boolean }> {
-		if (enabled === this.moderated) return { version: this.version, moderated: this.moderated };
+	async setModeration(enabled: boolean): Promise<RoomSettings> {
+		if (enabled !== this.moderated) {
+			this.ctx.storage.sql.exec('UPDATE room SET moderated = ? WHERE id = 1', enabled ? 1 : 0);
+			this.moderated = enabled;
+			this.commit(this.version + 1);
+		}
+		return this.settings();
+	}
 
-		const next = this.version + 1;
-		this.ctx.storage.sql.exec('UPDATE room SET moderated = ? WHERE id = 1', enabled ? 1 : 0);
-		this.moderated = enabled;
-		this.commit(next);
-
-		return { version: this.version, moderated: this.moderated };
+	/** Closing stops new questions only; votes on what is there keep moving. */
+	async setOpen(open: boolean): Promise<RoomSettings> {
+		if (open !== this.open) {
+			this.ctx.storage.sql.exec('UPDATE room SET open = ? WHERE id = 1', open ? 1 : 0);
+			this.open = open;
+			this.commit(this.version + 1);
+		}
+		return this.settings();
 	}
 
 	/** `view` is required because a default is a thing to forget, and forgetting
@@ -361,6 +380,7 @@ export class Room extends DurableObject<Env> {
 		this.ctx.storage.sql.exec(SCHEMA);
 		this.version = 0;
 		this.moderated = false;
+		this.open = true;
 		// A screen cannot be told to forget in a diff, so it is made to reconnect.
 		for (const writer of this.streams) void writer.close().catch(() => {});
 		this.streams.clear();
@@ -395,7 +415,7 @@ export class Room extends DurableObject<Env> {
 	 * tell a screen to take one down; pending ones are dropped outright from the
 	 * audience view, which is safe only because nothing returns to `pending`.
 	 *
-	 * `moderated` changes no row, so it rides in the payload, not the diff.
+	 * The settings change no row, so they ride in the payload, not the diff.
 	 */
 	private project(view: SnapshotView, since: number): Snapshot {
 		const audience = view === 'audience';
@@ -413,12 +433,11 @@ export class Room extends DurableObject<Env> {
 			return audience && question.status === 'dismissed' ? withoutContent(question) : question;
 		});
 
-		return {
-			version: this.version,
-			moderated: this.moderated,
-			translates: this.translation !== null,
-			questions,
-		};
+		return { ...this.settings(), translates: this.translation !== null, questions };
+	}
+
+	private settings(): RoomSettings {
+		return { version: this.version, moderated: this.moderated, open: this.open };
 	}
 
 	private count(): number {

@@ -31,6 +31,7 @@ const ROOMS = [
 	'bloat',
 	'bust',
 	'cache',
+	'closed',
 	'create',
 	'crowd',
 	'etag',
@@ -231,6 +232,27 @@ describe('what the edge turns away', () => {
 
 		expect(refused.status).toBe(409);
 		expect(retried.status).toBe(200);
+	});
+});
+
+describe('room settings', () => {
+	it('closes a room to new questions and says so', async () => {
+		const closed = await call('/api/rooms/closed', {
+			method: 'PATCH',
+			headers: ADMIN,
+			body: JSON.stringify({ open: false }),
+		});
+		const refused = await post('closed', 'q1');
+		const nothing = await call('/api/rooms/closed', {
+			method: 'PATCH',
+			headers: ADMIN,
+			body: JSON.stringify({}),
+		});
+
+		expect(await closed.json()).toMatchObject({ open: false, moderated: false });
+		expect(refused.status).toBe(409);
+		expect(await refused.json()).toEqual({ error: 'this room is closed to new questions' });
+		expect(nothing.status).toBe(400);
 	});
 });
 

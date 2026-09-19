@@ -56,7 +56,13 @@ export function Participant({ roomId }: { roomId: string }) {
 
 	return (
 		<Page width="max-w-2xl" connection={room.connection}>
-			<AskForm moderated={room.moderated} onAsk={room.ask} />
+			{room.open ? (
+				<AskForm moderated={room.moderated} onAsk={room.ask} />
+			) : (
+				<p role="status" className="bg-base-200 rounded-box px-4 py-3 text-center text-sm">
+					This room is closed to new questions.
+				</p>
+			)}
 
 			<div className="flex items-center justify-between gap-2">
 				<div role="tablist" className="tabs tabs-border tabs-sm">

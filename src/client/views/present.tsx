@@ -75,6 +75,7 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 					{room.connection !== 'live' && (
 						<span className="badge badge-warning badge-soft">not live</span>
 					)}
+					{!room.open && <span className="badge badge-soft">closed to new questions</span>}
 				</aside>
 
 				<main className="min-w-0">

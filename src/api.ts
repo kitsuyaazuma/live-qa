@@ -26,6 +26,7 @@ import { roomLocationFromEnv } from './config';
 import {
 	type Account,
 	type Asker,
+	type RoomSettings,
 	requireEmail,
 	requireId,
 	requireName,
@@ -139,7 +140,10 @@ api.post('/api/rooms/:roomId/questions', async (c) => {
 	const roomId = await known(c.env, c.req.param('roomId'));
 
 	const result = await room(c.env, roomId).postQuestion({ id, text, asker });
-	if ('status' in result) return c.json({ error: 'this room is full' }, 409);
+	if ('status' in result) {
+		const why = result.status === 'room-closed' ? 'closed to new questions' : 'full';
+		return c.json({ error: `this room is ${why}` }, 409);
+	}
 	return c.json(result, result.created ? 201 : 200);
 });
 
@@ -455,9 +459,15 @@ api.patch('/api/rooms/:roomId/questions/:questionId', operator, async (c) => {
 
 api.patch('/api/rooms/:roomId', operator, async (c) => {
 	const input = await body(c);
-	const result = await room(c.env, c.req.param('roomId')).setModeration(
-		asBoolean(input.moderated, 'moderated'),
-	);
+	if (!('moderated' in input) && !('open' in input)) {
+		fail(new Error('body must set moderated or open'));
+	}
+	const target = room(c.env, c.req.param('roomId'));
+	let result: RoomSettings | undefined;
+	if ('moderated' in input) {
+		result = await target.setModeration(asBoolean(input.moderated, 'moderated'));
+	}
+	if ('open' in input) result = await target.setOpen(asBoolean(input.open, 'open'));
 	return c.json(result);
 });
 

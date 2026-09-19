@@ -3,6 +3,7 @@ import type {
 	Operator,
 	Question,
 	RoomInfo,
+	RoomSettings,
 	Snapshot,
 	StatusResult,
 	VoteResult,
@@ -96,14 +97,19 @@ export function setStatus(
 	});
 }
 
-export function setModeration(
-	roomId: string,
-	enabled: boolean,
-): Promise<{ version: number; moderated: boolean }> {
+export function setModeration(roomId: string, enabled: boolean): Promise<RoomSettings> {
 	return send(rooms(roomId), {
 		method: 'PATCH',
 		headers: JSON_BODY,
 		body: JSON.stringify({ moderated: enabled }),
+	});
+}
+
+export function setOpen(roomId: string, open: boolean): Promise<RoomSettings> {
+	return send(rooms(roomId), {
+		method: 'PATCH',
+		headers: JSON_BODY,
+		body: JSON.stringify({ open }),
 	});
 }
 

@@ -57,6 +57,21 @@ export function Settings({
 			<Modal ref={dialog} title="Settings">
 				<label className="flex cursor-pointer items-center justify-between gap-3">
 					<span>
+						Accepting questions
+						<span className="block text-xs opacity-70">
+							Off keeps the list up and takes no new ones.
+						</span>
+					</span>
+					<input
+						type="checkbox"
+						className="toggle"
+						checked={room.open}
+						disabled={busy}
+						onChange={(event) => void change(() => api.setOpen(roomId, event.target.checked))}
+					/>
+				</label>
+				<label className="flex cursor-pointer items-center justify-between gap-3">
+					<span>
 						Review before showing
 						<span className="block text-xs opacity-70">New questions wait for you.</span>
 					</span>

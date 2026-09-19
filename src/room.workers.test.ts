@@ -70,6 +70,23 @@ describe('Room', () => {
 		expect(questions[0]?.status).toBe('pending');
 	});
 
+	it('refuses new questions while closed, but still takes a retry', async () => {
+		const r = room('closed');
+		const before = stored(await r.postQuestion({ id: 'q1', text: TEXT }));
+		await r.setOpen(false);
+
+		const refused = await r.postQuestion({ id: 'q2', text: TEXT });
+		const retried = await r.postQuestion({ id: 'q1', text: TEXT });
+		await r.setVote({ questionId: 'q1', voterId: 'v1', voted: true });
+		await r.setOpen(true);
+		const after = stored(await r.postQuestion({ id: 'q3', text: TEXT }));
+
+		expect(refused).toEqual({ status: 'room-closed', version: before.version + 1 });
+		expect('created' in retried && retried.created).toBe(false);
+		expect((await r.snapshot({ view: 'audience' })).questions[0]?.votes).toBe(1);
+		expect(after.created).toBe(true);
+	});
+
 	it('counts one vote per voter', async () => {
 		const r = room('vote');
 		await r.postQuestion({ id: 'q1', text: TEXT });

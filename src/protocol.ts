@@ -30,6 +30,8 @@ export interface Question {
 export interface Snapshot {
 	version: number;
 	moderated: boolean;
+	/** False once an operator has closed the room to new questions. */
+	open: boolean;
 	/** False when no translator is configured, so no screen promises one. */
 	translates: boolean;
 	questions: Question[];
@@ -42,9 +44,11 @@ export interface Snapshot {
  */
 type UnknownQuestion = { status: 'unknown-question'; version: number };
 
-export type RoomFull = { status: 'room-full'; version: number };
+export type RoomSettings = Pick<Snapshot, 'version' | 'moderated' | 'open'>;
 
-export type AskResult = { created: boolean; version: number; question: Question } | RoomFull;
+export type Refused = { status: 'room-full' | 'room-closed'; version: number };
+
+export type AskResult = { created: boolean; version: number; question: Question } | Refused;
 
 export type VoteResult =
 	| { status: 'changed' | 'unchanged'; version: number; votes: number }

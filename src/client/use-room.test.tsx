@@ -45,6 +45,7 @@ beforeEach(() => {
 	served = {
 		version: 0,
 		moderated: false,
+		open: true,
 		translates: true,
 		questions: [],
 	};
@@ -118,6 +119,7 @@ describe('useRoom', () => {
 		served = {
 			version: 1,
 			moderated: false,
+			open: true,
 			translates: true,
 			questions: [{ ...(asked as Question), votes: 3 }],
 		};
@@ -131,6 +133,7 @@ describe('useRoom', () => {
 		served = {
 			version: 5,
 			moderated: false,
+			open: true,
 			translates: true,
 			questions: [question({ votes: 2 })],
 		};
@@ -151,6 +154,7 @@ describe('useRoom', () => {
 		served = {
 			version: 5,
 			moderated: false,
+			open: true,
 			translates: true,
 			questions: [question({ votes: 2 })],
 		};
@@ -169,6 +173,7 @@ describe('useRoom', () => {
 		served = {
 			version: 5,
 			moderated: false,
+			open: true,
 			translates: true,
 			questions: [
 				question({ id: 'kept' }),
@@ -185,6 +190,7 @@ describe('useRoom', () => {
 		served = {
 			version: 5,
 			moderated: false,
+			open: true,
 			translates: true,
 			questions: [question()],
 		};
