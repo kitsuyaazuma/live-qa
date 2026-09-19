@@ -170,3 +170,7 @@ dist
 demo/out/
 
 .claude/worktrees/
+
+# load test reports
+load/*.html
+load/summary.json
