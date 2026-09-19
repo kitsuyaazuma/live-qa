@@ -33,6 +33,9 @@ jobs:
           - name: Format/Lint
             run: pnpm exec biome ci .
 
+          - name: Format (Markdown)
+            run: pnpm exec prettier --check "**/*.md"
+
           - name: Typecheck
             run: pnpm run typecheck
 

@@ -35,8 +35,7 @@ export CLOUDFLARE_ACCOUNT_ID=...   # pnpm exec wrangler whoami lists them
 pnpm run deploy                    # creates the database, prints the url
 ```
 
-Secrets, once. At least one sign-in provider; the callbacks are
-`<origin>/auth/google` and `<origin>/auth/github`.
+Secrets, once. At least one sign-in provider; the callbacks are `<origin>/auth/google` and `<origin>/auth/github`.
 
 ```bash
 pnpm exec wrangler secret put SESSION_SECRET       # any long random string
@@ -47,37 +46,32 @@ pnpm exec wrangler secret put GITHUB_CLIENT_ID
 pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
 ```
 
-Translation is set in the `vars` of [wrangler.jsonc](wrangler.jsonc): model,
-languages, free-form context. An empty `TRANSLATION_MODEL` turns it off.
+Translation is set in the `vars` of [wrangler.jsonc](wrangler.jsonc): model, languages, free-form context. An empty `TRANSLATION_MODEL` turns it off.
 
-Branding: copy `branding/default`, edit the title, colours, banner and icon,
-deploy with `BRANDING=<folder> pnpm run deploy`. `branding/pek2026` is an
-example.
+Branding: copy `branding/default`, edit the title, colours, banner and icon, deploy with `BRANDING=<folder> pnpm run deploy`. `branding/pek2026` is an example.
 
-Own domain: `DOMAIN=qa.example.com pnpm run deploy`, for a zone on the same
-account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
+Own domain: `DOMAIN=qa.example.com pnpm run deploy`, for a zone on the same account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
 
 ## Usage
 
-| Who      | Opens                | Does                                                                              |
-|----------|----------------------|-----------------------------------------------------------------------------------|
-| Admin    | `/` → **Host**       | creates the room and names its operators. The name is the link and the QR code: `/r/example` |
-| Operator | `/r/example/admin`   | shows, hides, puts on the stage, marks answered                                   |
-| Operator | `/r/example/present` | on the projector: QR code, address, top questions by votes                        |
-| Audience | `/r/example`         | asks, anonymously or under their name; upvotes                                    |
+| Who | Opens | Does |
+| --- | --- | --- |
+| Admin | `/` → **Host** | creates the room and names its operators. The name is the link and the QR code: `/r/example` |
+| Operator | `/r/example/admin` | shows, hides, puts on the stage, marks answered |
+| Operator | `/r/example/present` | on the projector: QR code, address, top questions by votes |
+| Audience | `/r/example` | asks, anonymously or under their name; upvotes |
 
-Admins can do everything an operator can. The gear on the admin and present
-screens opens the room's settings:
+Admins can do everything an operator can. The gear on the admin and present screens opens the room's settings:
 
-| Setting                  | Does                                                                                      |
-|--------------------------|-------------------------------------------------------------------------------------------|
-| **Accepting questions**  | off closes the room between talks: the list stays up, votes still count, nothing new comes in |
-| **Review before showing** | holds new questions until an operator releases them                                      |
-| **Next talk**            | archives every question, so the screens start empty for the next speaker                  |
-| **Translation shown**    | headline, full or none, on this screen only                                               |
-| **Export**               | downloads every question, archived ones included, with votes, status and translation, as CSV |
-| **Operators**            | admins name who may run the room                                                          |
-| **Delete this room**     | admins only; takes every question with it                                                 |
+| Setting | Does |
+| --- | --- |
+| **Accepting questions** | off closes the room between talks: the list stays up, votes still count, nothing new comes in |
+| **Review before showing** | holds new questions until an operator releases them |
+| **Next talk** | archives every question, so the screens start empty for the next speaker |
+| **Translation shown** | headline, full or none, on this screen only |
+| **Export** | downloads every question, archived ones included, with votes, status and translation, as CSV |
+| **Operators** | admins name who may run the room |
+| **Delete this room** | admins only; takes every question with it |
 
 ## Develop
 
@@ -89,9 +83,7 @@ pnpm test
 pnpm run demo                     # records the tour into demo/out
 ```
 
-Translation calls the real Workers AI even locally: `wrangler login` first, or
-leave `TRANSLATION_MODEL` empty. `pnpm run load` runs a k6 audience against
-`BASE_URL`.
+Translation calls the real Workers AI even locally: `wrangler login` first, or leave `TRANSLATION_MODEL` empty. `pnpm run load` runs a k6 audience against `BASE_URL`.
 
 ## License
 

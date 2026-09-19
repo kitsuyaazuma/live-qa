@@ -168,3 +168,5 @@ dist
 
 # demo recordings
 demo/out/
+
+.claude/worktrees/
