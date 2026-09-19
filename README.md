@@ -54,6 +54,9 @@ Branding: copy `branding/default`, edit the title, colours, banner and icon,
 deploy with `BRANDING=<folder> pnpm run deploy`. `branding/pek2026` is an
 example.
 
+Own domain: `DOMAIN=qa.example.com pnpm run deploy`, for a zone on the same
+account. Cloudflare sets up DNS and TLS and turns the workers.dev url off.
+
 ## Usage
 
 | Who      | Opens                | Does                                                                              |
