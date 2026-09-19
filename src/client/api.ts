@@ -109,6 +109,14 @@ export function archive(roomId: string): Promise<{ version: number; archived: nu
 	return send(`${rooms(roomId)}/archive`, { method: 'POST' });
 }
 
+export function setNotice(roomId: string, notice: string): Promise<RoomSettings> {
+	return send(rooms(roomId), {
+		method: 'PATCH',
+		headers: JSON_BODY,
+		body: JSON.stringify({ notice }),
+	});
+}
+
 export function setOpen(roomId: string, open: boolean): Promise<RoomSettings> {
 	return send(rooms(roomId), {
 		method: 'PATCH',

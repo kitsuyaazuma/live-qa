@@ -68,6 +68,7 @@ Admins can do everything an operator can. The gear on the admin and present scre
 | **Accepting questions** | off closes the room between talks: the list stays up, votes still count, nothing new comes in |
 | **Review before showing** | holds new questions until an operator releases them |
 | **Next talk** | archives every question, so the screens start empty for the next speaker |
+| **Notice** | one line on the audience and stage screens: "Q&A starts at 14:00" |
 | **Translation shown** | headline, full or none, on this screen only |
 | **Export** | downloads every question, archived ones included, with votes, status and translation, as CSV |
 | **Operators** | admins name who may run the room |

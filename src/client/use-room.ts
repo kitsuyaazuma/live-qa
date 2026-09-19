@@ -18,6 +18,7 @@ interface RoomState {
 	questions: Question[];
 	moderated: boolean;
 	open: boolean;
+	notice: string;
 	connection: Connection;
 	asked: Set<string>;
 	voted: Set<string>;
@@ -151,6 +152,7 @@ export function useRoom(roomId: string): RoomState {
 		moderated: snapshot?.moderated ?? false,
 		// Open until told otherwise, so the form does not flash a closed notice on load.
 		open: snapshot?.open ?? true,
+		notice: snapshot?.notice ?? '',
 		connection,
 		asked,
 		voted,

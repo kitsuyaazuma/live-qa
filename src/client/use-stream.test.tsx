@@ -18,7 +18,7 @@ function question(overrides: Partial<Question> = {}): Question {
 }
 
 function diff(version: number, questions: Question[]): Snapshot {
-	return { version, moderated: false, open: true, translates: true, questions };
+	return { version, moderated: false, open: true, notice: '', translates: true, questions };
 }
 
 /** The room's end of the stream, so a test can push a frame when it wants. */

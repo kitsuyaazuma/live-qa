@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NOTICE_MAX } from '../../protocol';
 import * as api from '../api';
 import { Download, External, Gear } from '../icons';
 import { TRANSLATION_SHOWN, type TranslationShown } from '../translation';
@@ -6,6 +7,62 @@ import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
 import { Modal } from './modal';
 import { DeleteRoom, Operators } from './operators';
+
+function Notice({
+	roomId,
+	current,
+	onError,
+}: {
+	roomId: string;
+	current: string;
+	onError: (said: string) => void;
+}) {
+	const [draft, setDraft] = useState(current);
+	const [busy, setBusy] = useState(false);
+	// Another screen's edit arrives through the stream and replaces an untouched draft.
+	useEffect(() => setDraft(current), [current]);
+
+	async function save(event: { preventDefault: () => void }) {
+		event.preventDefault();
+		setBusy(true);
+		try {
+			await api.setNotice(roomId, draft);
+		} catch (cause) {
+			onError(cause instanceof Error ? cause.message : 'that did not go through');
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<form className="flex flex-col gap-2" onSubmit={save}>
+			<label htmlFor="notice" className="text-base">
+				Notice
+				<span className="block text-xs opacity-70">
+					One line on every screen. Empty takes it down.
+				</span>
+			</label>
+			<div className="join">
+				<input
+					id="notice"
+					type="text"
+					className="input input-sm join-item w-full"
+					placeholder="Q&A starts at 14:00"
+					maxLength={NOTICE_MAX}
+					value={draft}
+					onChange={(event) => setDraft(event.target.value)}
+				/>
+				<button
+					type="submit"
+					className="btn btn-sm join-item"
+					disabled={busy || draft.trim() === current}
+				>
+					{current && draft.trim() === '' ? 'Take down' : 'Show'}
+				</button>
+			</div>
+		</form>
+	);
+}
 
 /** Two steps, like deleting the room: one tap here empties every screen in the hall. */
 function NextTalk({ roomId, onError }: { roomId: string; onError: (said: string) => void }) {
@@ -127,6 +184,7 @@ export function Settings({
 						onChange={(event) => void change(() => api.setModeration(roomId, event.target.checked))}
 					/>
 				</label>
+				<Notice roomId={roomId} current={room.notice} onError={setError} />
 				<NextTalk roomId={roomId} onError={setError} />
 				<fieldset className="fieldset gap-1 p-0" disabled={!room.translates}>
 					<legend className="px-0 text-base font-normal">

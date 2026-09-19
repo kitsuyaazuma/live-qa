@@ -14,6 +14,7 @@ export interface StreamState {
 	version: number;
 	moderated: boolean;
 	open: boolean;
+	notice: string;
 	translates: boolean;
 	connection: StreamConnection;
 }
@@ -23,6 +24,7 @@ const EMPTY: StreamState = {
 	version: 0,
 	moderated: false,
 	open: true,
+	notice: '',
 	translates: false,
 	connection: 'opening',
 };
@@ -71,6 +73,7 @@ export function useStream(roomId: string, enabled: boolean): StreamState {
 								version: diff.version,
 								moderated: diff.moderated,
 								open: diff.open,
+								notice: diff.notice,
 								translates: diff.translates,
 								connection: 'live',
 							});

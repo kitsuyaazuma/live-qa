@@ -46,6 +46,7 @@ beforeEach(() => {
 		version: 0,
 		moderated: false,
 		open: true,
+		notice: '',
 		translates: true,
 		questions: [],
 	};
@@ -120,6 +121,7 @@ describe('useRoom', () => {
 			version: 1,
 			moderated: false,
 			open: true,
+			notice: '',
 			translates: true,
 			questions: [{ ...(asked as Question), votes: 3 }],
 		};
@@ -134,6 +136,7 @@ describe('useRoom', () => {
 			version: 5,
 			moderated: false,
 			open: true,
+			notice: '',
 			translates: true,
 			questions: [question({ votes: 2 })],
 		};
@@ -155,6 +158,7 @@ describe('useRoom', () => {
 			version: 5,
 			moderated: false,
 			open: true,
+			notice: '',
 			translates: true,
 			questions: [question({ votes: 2 })],
 		};
@@ -174,6 +178,7 @@ describe('useRoom', () => {
 			version: 5,
 			moderated: false,
 			open: true,
+			notice: '',
 			translates: true,
 			questions: [
 				question({ id: 'kept' }),
@@ -192,6 +197,7 @@ describe('useRoom', () => {
 			version: 5,
 			moderated: false,
 			open: true,
+			notice: '',
 			translates: true,
 			questions: [question()],
 		};

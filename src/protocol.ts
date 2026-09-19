@@ -44,6 +44,8 @@ export interface Snapshot {
 	moderated: boolean;
 	/** False once an operator has closed the room to new questions. */
 	open: boolean;
+	/** One line from the operators for every screen; empty is none. */
+	notice: string;
 	/** False when no translator is configured, so no screen promises one. */
 	translates: boolean;
 	questions: Question[];
@@ -56,7 +58,7 @@ export interface Snapshot {
  */
 type UnknownQuestion = { status: 'unknown-question'; version: number };
 
-export type RoomSettings = Pick<Snapshot, 'version' | 'moderated' | 'open'>;
+export type RoomSettings = Pick<Snapshot, 'version' | 'moderated' | 'open' | 'notice'>;
 
 export type Refused = { status: 'room-full' | 'room-closed'; version: number };
 
@@ -102,6 +104,17 @@ export function requireTarget(value: string): Exclude<Status, 'pending'> {
 }
 
 export const NAME_MAX = 40;
+
+/** Long enough for a time and a sentence, short enough to stay one line on the stage. */
+export const NOTICE_MAX = 140;
+
+/** Empty clears it. */
+export function requireNotice(value: string): string {
+	const notice = value.trim().replace(/\s+/g, ' ');
+	if (notice.length > NOTICE_MAX)
+		throw new Error(`notice must be at most ${NOTICE_MAX} characters`);
+	return notice;
+}
 
 export function requireName(value: string): string {
 	const name = value.trim().replace(/\s+/g, ' ');

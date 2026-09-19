@@ -8,7 +8,7 @@
  * Your conference's colours, set on both themes so a phone in dark mode is
  * still in the brand. Only the values you care about need to be here.
  * Primary carries the question on the stage; secondary is the accent on what
- * a participant did themselves.
+ * a participant did themselves; info is the operators' notice.
  * All of them: https://daisyui.com/docs/themes/ and /theme-generator/
  */
 @plugin "daisyui/theme" {
@@ -23,6 +23,10 @@
 	--color-accent-content: #ffffff;
 	--color-neutral: #f4bd00;
 	--color-neutral-content: #1f1a00;
+	--color-info: #006fb8;
+	--color-info-content: #ffffff;
+	--color-warning: #f4bd00;
+	--color-warning-content: #1f1a00;
 }
 
 @plugin "daisyui/theme" {
@@ -37,4 +41,8 @@
 	--color-accent-content: #ffffff;
 	--color-neutral: #f4bd00;
 	--color-neutral-content: #1f1a00;
+	--color-info: #006fb8;
+	--color-info-content: #ffffff;
+	--color-warning: #f4bd00;
+	--color-warning-content: #1f1a00;
 }

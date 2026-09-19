@@ -294,6 +294,18 @@ describe('Room', () => {
 		expect(next.version).toBe(3);
 	});
 
+	it('carries a notice to every screen until it is taken down', async () => {
+		const r = room('notice');
+
+		const shown = await r.setNotice('  Q&A starts   at 14:00 ');
+		const seen = await r.snapshot({ view: 'audience' });
+		const taken = await r.setNotice('   ');
+
+		expect(shown).toMatchObject({ version: 1, notice: 'Q&A starts at 14:00' });
+		expect(seen.notice).toBe('Q&A starts at 14:00');
+		expect(taken).toMatchObject({ version: 2, notice: '' });
+	});
+
 	it('archives every question at once and blanks them for the audience', async () => {
 		const r = room('archive');
 		await r.postQuestion({ id: 'q1', text: TEXT });

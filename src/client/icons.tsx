@@ -235,6 +235,15 @@ export function Download(props: SVGProps<SVGSVGElement>) {
 	);
 }
 
+export function Megaphone(props: SVGProps<SVGSVGElement>) {
+	return (
+		<Icon {...props}>
+			<path d="M3 11l18-5v12L3 14v-3z" />
+			<path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+		</Icon>
+	);
+}
+
 export function Sun(props: SVGProps<SVGSVGElement>) {
 	return (
 		<Icon {...props}>

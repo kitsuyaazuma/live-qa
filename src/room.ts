@@ -7,6 +7,7 @@ import {
 	type Question,
 	type RoomSettings,
 	requireId,
+	requireNotice,
 	requireTarget,
 	requireText,
 	type Snapshot,
@@ -69,7 +70,8 @@ CREATE TABLE IF NOT EXISTS room (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	version INTEGER NOT NULL DEFAULT 0,
 	moderated INTEGER NOT NULL DEFAULT 0,
-	open INTEGER NOT NULL DEFAULT 1
+	open INTEGER NOT NULL DEFAULT 1,
+	notice TEXT NOT NULL DEFAULT ''
 ) STRICT;
 
 INSERT OR IGNORE INTO room (id, version, moderated) VALUES (1, 0, 0);
@@ -136,6 +138,7 @@ export class Room extends DurableObject<Env> {
 	private version = 0;
 	private moderated = false;
 	private open = true;
+	private notice = '';
 	private readonly streams = new Set<Stream>();
 	private beat: ReturnType<typeof setInterval> | undefined;
 	private readonly translation: TranslationSettings | null;
@@ -158,6 +161,9 @@ export class Room extends DurableObject<Env> {
 			if (!columns('room').includes('open')) {
 				sql.exec('ALTER TABLE room ADD COLUMN open INTEGER NOT NULL DEFAULT 1');
 			}
+			if (!columns('room').includes('notice')) {
+				sql.exec("ALTER TABLE room ADD COLUMN notice TEXT NOT NULL DEFAULT ''");
+			}
 			// SQLite cannot widen a check constraint, so a table from before `archived`
 			// is rebuilt; its indexes go with the old table and the schema puts them back.
 			const definition = sql
@@ -171,13 +177,14 @@ export class Room extends DurableObject<Env> {
 				sql.exec(SCHEMA);
 			}
 			const row = sql
-				.exec<{ version: number; moderated: number; open: number }>(
-					'SELECT version, moderated, open FROM room WHERE id = 1',
+				.exec<{ version: number; moderated: number; open: number; notice: string }>(
+					'SELECT version, moderated, open, notice FROM room WHERE id = 1',
 				)
 				.one();
 			this.version = row.version;
 			this.moderated = row.moderated === 1;
 			this.open = row.open === 1;
+			this.notice = row.notice;
 			// The question and its alarm are separate writes, so one can arrive alone.
 			if (this.untranslated(1).length > 0) await this.scheduleTranslation();
 		});
@@ -375,6 +382,16 @@ export class Room extends DurableObject<Env> {
 		return this.settings();
 	}
 
+	async setNotice(value: string): Promise<RoomSettings> {
+		const notice = requireNotice(value);
+		if (notice !== this.notice) {
+			this.ctx.storage.sql.exec('UPDATE room SET notice = ? WHERE id = 1', notice);
+			this.notice = notice;
+			this.commit(this.version + 1);
+		}
+		return this.settings();
+	}
+
 	/** Closing stops new questions only; votes on what is there keep moving. */
 	async setOpen(open: boolean): Promise<RoomSettings> {
 		if (open !== this.open) {
@@ -411,6 +428,7 @@ export class Room extends DurableObject<Env> {
 		this.version = 0;
 		this.moderated = false;
 		this.open = true;
+		this.notice = '';
 		// A screen cannot be told to forget in a diff, so it is made to reconnect.
 		for (const writer of this.streams) void writer.close().catch(() => {});
 		this.streams.clear();
@@ -467,7 +485,12 @@ export class Room extends DurableObject<Env> {
 	}
 
 	private settings(): RoomSettings {
-		return { version: this.version, moderated: this.moderated, open: this.open };
+		return {
+			version: this.version,
+			moderated: this.moderated,
+			open: this.open,
+			notice: this.notice,
+		};
 	}
 
 	private count(): number {

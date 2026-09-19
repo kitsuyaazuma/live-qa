@@ -31,6 +31,7 @@ import {
 	requireEmail,
 	requireId,
 	requireName,
+	requireNotice,
 	requireTarget,
 	requireText,
 } from './protocol';
@@ -474,8 +475,8 @@ api.patch('/api/rooms/:roomId/questions/:questionId', operator, async (c) => {
 
 api.patch('/api/rooms/:roomId', operator, async (c) => {
 	const input = await body(c);
-	if (!('moderated' in input) && !('open' in input)) {
-		fail(new Error('body must set moderated or open'));
+	if (!('moderated' in input) && !('open' in input) && !('notice' in input)) {
+		fail(new Error('body must set moderated, open or notice'));
 	}
 	const target = room(c.env, c.req.param('roomId'));
 	let result: RoomSettings | undefined;
@@ -483,6 +484,10 @@ api.patch('/api/rooms/:roomId', operator, async (c) => {
 		result = await target.setModeration(asBoolean(input.moderated, 'moderated'));
 	}
 	if ('open' in input) result = await target.setOpen(asBoolean(input.open, 'open'));
+	if ('notice' in input) {
+		const notice = checked(() => requireNotice(asString(input.notice, 'notice')));
+		result = await target.setNotice(notice);
+	}
 	return c.json(result);
 });
 

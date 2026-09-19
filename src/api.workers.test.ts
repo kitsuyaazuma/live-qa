@@ -28,6 +28,7 @@ async function sessionFor(email: string): Promise<Record<string, string>> {
 const ROOMS = [
 	'named',
 	'archive',
+	'notice',
 	'badstatus',
 	'bloat',
 	'bust',
@@ -269,6 +270,24 @@ describe('next talk', () => {
 });
 
 describe('room settings', () => {
+	it('shows a notice from an operator and refuses one too long', async () => {
+		const shown = await call('/api/rooms/notice', {
+			method: 'PATCH',
+			headers: ADMIN,
+			body: JSON.stringify({ notice: 'Mic goes round after the talk' }),
+		});
+		const long = await call('/api/rooms/notice', {
+			method: 'PATCH',
+			headers: ADMIN,
+			body: JSON.stringify({ notice: 'x'.repeat(141) }),
+		});
+		const audience = (await read('notice').then((r) => r.json())) as { notice: string };
+
+		expect(await shown.json()).toMatchObject({ notice: 'Mic goes round after the talk' });
+		expect(long.status).toBe(400);
+		expect(audience.notice).toBe('Mic goes round after the talk');
+	});
+
 	it('closes a room to new questions and says so', async () => {
 		const closed = await call('/api/rooms/closed', {
 			method: 'PATCH',

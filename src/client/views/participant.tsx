@@ -5,6 +5,7 @@ import { BackToTop } from '../components/back-to-top';
 import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
+import { Megaphone } from '../icons';
 import { byNewest, byVotes } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -57,6 +58,12 @@ export function Participant({ roomId }: { roomId: string }) {
 
 	return (
 		<Page width="max-w-2xl" connection={room.connection}>
+			{room.notice && (
+				<div role="status" className="alert alert-info alert-soft">
+					<Megaphone className="size-5 shrink-0" />
+					<span>{room.notice}</span>
+				</div>
+			)}
 			{room.open ? (
 				<AskForm moderated={room.moderated} onAsk={room.ask} />
 			) : (

@@ -6,6 +6,7 @@ import { Fullscreen } from '../components/fullscreen';
 import { Operator } from '../components/operator';
 import { Settings } from '../components/settings';
 import { StageCard } from '../components/stage-card';
+import { Megaphone } from '../icons';
 import { forStage } from '../order';
 import { useTranslationShown } from '../translation';
 import { useFlip } from '../use-flip';
@@ -72,6 +73,12 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 						<p className="text-lg opacity-70">Join at</p>
 						<Address link={link} />
 					</div>
+					{room.notice && (
+						<p role="status" className="alert alert-info alert-soft w-full text-left text-lg">
+							<Megaphone className="size-6 shrink-0" />
+							<span>{room.notice}</span>
+						</p>
+					)}
 					{room.connection !== 'live' && (
 						<span className="badge badge-warning badge-soft">not live</span>
 					)}
