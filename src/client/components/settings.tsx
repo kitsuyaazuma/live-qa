@@ -1,4 +1,15 @@
-import { Download, ExternalLink, Settings as SettingsIcon } from 'lucide-react';
+import {
+	Archive,
+	DoorClosed,
+	DoorOpen,
+	Download,
+	ExternalLink,
+	FileDown,
+	Hourglass,
+	Languages,
+	Megaphone,
+	Settings as SettingsIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NOTICE_MAX } from '../../protocol';
 import * as api from '../api';
@@ -7,6 +18,7 @@ import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
 import { Modal } from './modal';
 import { DeleteRoom, Operators } from './operators';
+import { Title } from './title';
 
 function Notice({
 	roomId,
@@ -37,10 +49,11 @@ function Notice({
 	return (
 		<form className="flex flex-col gap-2" onSubmit={save}>
 			<label htmlFor="notice" className="text-base">
-				Notice
-				<span className="block text-xs opacity-70">
-					One line on every screen. Empty takes it down.
-				</span>
+				<Title
+					icon={Megaphone}
+					text="Notice"
+					said="One line on every screen. Empty takes it down."
+				/>
 			</label>
 			<div className="join">
 				<input
@@ -84,10 +97,11 @@ function NextTalk({ roomId, onError }: { roomId: string; onError: (said: string)
 	return (
 		<div className="flex flex-col gap-2">
 			<p className="text-base">
-				Next talk
-				<span className="block text-xs opacity-70">
-					Takes every question off the screens. The export keeps them.
-				</span>
+				<Title
+					icon={Archive}
+					text="Next talk"
+					said="Takes every question off the screens. The export keeps them."
+				/>
 			</p>
 			{arming ? (
 				<div className="flex flex-wrap items-center gap-2 text-sm">
@@ -158,10 +172,11 @@ export function Settings({
 			<Modal ref={dialog} title="Settings">
 				<label className="flex cursor-pointer items-center justify-between gap-3">
 					<span>
-						Accepting questions
-						<span className="block text-xs opacity-70">
-							Off keeps the list up and takes no new ones.
-						</span>
+						<Title
+							icon={room.open ? DoorOpen : DoorClosed}
+							text="Accepting questions"
+							said="Off keeps the list up and takes no new ones."
+						/>
 					</span>
 					<input
 						type="checkbox"
@@ -173,8 +188,11 @@ export function Settings({
 				</label>
 				<label className="flex cursor-pointer items-center justify-between gap-3">
 					<span>
-						Review before showing
-						<span className="block text-xs opacity-70">New questions wait for you.</span>
+						<Title
+							icon={Hourglass}
+							text="Review before showing"
+							said="New questions wait for you."
+						/>
 					</span>
 					<input
 						type="checkbox"
@@ -188,8 +206,7 @@ export function Settings({
 				<NextTalk roomId={roomId} onError={setError} />
 				<fieldset className="fieldset gap-1 p-0" disabled={!room.translates}>
 					<legend className="px-0 text-base font-normal">
-						Translation shown
-						<span className="block text-xs opacity-70">This screen only.</span>
+						<Title icon={Languages} text="Translation shown" said="This screen only." />
 					</legend>
 					{TRANSLATION_SHOWN.map((value) => (
 						<label key={value} className="flex cursor-pointer items-start gap-3 py-1">
@@ -213,10 +230,11 @@ export function Settings({
 				</fieldset>
 				<div className="flex flex-col gap-2">
 					<p className="text-base">
-						Export
-						<span className="block text-xs opacity-70">
-							Every question with its votes, status and translation.
-						</span>
+						<Title
+							icon={FileDown}
+							text="Export"
+							said="Every question with its votes, status and translation."
+						/>
 					</p>
 					<a
 						href={`/api/rooms/${encodeURIComponent(roomId)}/export`}

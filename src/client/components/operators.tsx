@@ -1,7 +1,9 @@
+import { Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { type Operator, requireEmail } from '../../protocol';
 import * as api from '../api';
 import { navigate } from '../router';
+import { Title } from './title';
 
 function said(cause: unknown, fallback: string): string {
 	return cause instanceof Error ? cause.message : fallback;
@@ -42,10 +44,11 @@ export function Operators({ roomId }: { roomId: string }) {
 	return (
 		<fieldset className="fieldset gap-2 p-0">
 			<legend className="px-0 text-base font-normal">
-				Operators
-				<span className="block text-xs opacity-70">
-					Signed in with one of these addresses, they can run this room.
-				</span>
+				<Title
+					icon={Users}
+					text="Operators"
+					said="Signed in with one of these addresses, they can run this room."
+				/>
 			</legend>
 			{list === null ? (
 				<span className="loading loading-spinner loading-sm" />
@@ -129,9 +132,10 @@ export function DeleteRoom({ roomId }: { roomId: string }) {
 			) : (
 				<button
 					type="button"
-					className="btn btn-outline btn-error btn-sm self-start"
+					className="btn btn-outline btn-error btn-sm self-start gap-1.5"
 					onClick={() => setArming(true)}
 				>
+					<Trash2 className="size-4" />
 					Delete this room
 				</button>
 			)}
