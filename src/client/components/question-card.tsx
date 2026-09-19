@@ -1,4 +1,4 @@
-import { ThumbsUp } from 'lucide-react';
+import { CircleCheck, Hourglass, ThumbsUp, Trash2, UserRound } from 'lucide-react';
 import type { Question } from '../../protocol';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
@@ -55,21 +55,35 @@ export function QuestionCard({
 									: 'btn'
 						}`}
 					>
-						<ThumbsUp className="size-4" />
+						<ThumbsUp className="size-4" fill={voted ? 'currentColor' : 'none'} />
 						<span className="tabular-nums">{question.votes}</span>
 					</button>
 					{waiting && (
-						<span className="badge badge-warning badge-soft badge-sm">Waiting for review</span>
+						<span className="badge badge-warning badge-soft badge-sm gap-1">
+							<Hourglass className="size-3" />
+							Waiting for review
+						</span>
 					)}
-					{answered && <span className="badge badge-accent badge-soft badge-sm">Answered</span>}
-					{mine && <span className="badge badge-secondary badge-soft badge-sm">Yours</span>}
+					{answered && (
+						<span className="badge badge-accent badge-soft badge-sm gap-1">
+							<CircleCheck className="size-3" />
+							Answered
+						</span>
+					)}
+					{mine && (
+						<span className="badge badge-secondary badge-soft badge-sm gap-1">
+							<UserRound className="size-3" />
+							Yours
+						</span>
+					)}
 					{onWithdraw && (
 						<button
 							type="button"
-							className={`btn-xs ${answering ? GHOST : 'btn btn-ghost'}`}
+							className={`btn-sm gap-1.5 ${answering ? GHOST : 'btn btn-ghost'}`}
 							aria-label="Take your question back"
 							onClick={onWithdraw}
 						>
+							<Trash2 className="size-4" />
 							Take back
 						</button>
 					)}

@@ -1,4 +1,4 @@
-import { Megaphone } from 'lucide-react';
+import { Clock, Flame, Lock, Megaphone, MessageSquare, MessageSquareDashed } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
 import { AskForm } from '../components/ask-form';
@@ -68,7 +68,11 @@ export function Participant({ roomId }: { roomId: string }) {
 			{room.open ? (
 				<AskForm moderated={room.moderated} onAsk={room.ask} />
 			) : (
-				<p role="status" className="bg-base-200 rounded-box px-4 py-3 text-center text-sm">
+				<p
+					role="status"
+					className="bg-base-200 rounded-box flex items-center justify-center gap-2 px-4 py-3 text-sm"
+				>
+					<Lock className="size-4 shrink-0" />
 					This room is closed to new questions.
 				</p>
 			)}
@@ -81,16 +85,22 @@ export function Participant({ roomId }: { roomId: string }) {
 							type="button"
 							role="tab"
 							aria-selected={order === value}
-							className={`tab ${order === value ? 'tab-active' : ''}`}
+							className={`tab gap-1.5 ${order === value ? 'tab-active' : ''}`}
 							onClick={() => setOrder(value)}
 						>
+							{value === 'popular' ? <Flame className="size-4" /> : <Clock className="size-4" />}
 							{value === 'popular' ? 'Popular' : 'Recent'}
 						</button>
 					))}
 				</div>
 				<div className="flex items-center gap-2">
-					<span aria-live="polite" className="text-xs tabular-nums opacity-70">
-						{questions.length} {questions.length === 1 ? 'question' : 'questions'}
+					<span
+						aria-live="polite"
+						className="inline-flex items-center gap-1 text-xs tabular-nums opacity-70"
+					>
+						<MessageSquare className="size-3.5" />
+						{questions.length}
+						<span className="sr-only">{questions.length === 1 ? 'question' : 'questions'}</span>
 					</span>
 					<Filter filter={filter} asked={room.asked.size} />
 				</div>
@@ -102,7 +112,10 @@ export function Participant({ roomId }: { roomId: string }) {
 					<div className="skeleton h-20 w-full" />
 				</div>
 			) : questions.length === 0 ? (
-				<p className="py-10 text-center opacity-70">No questions yet. Ask the first one.</p>
+				<div className="flex flex-col items-center gap-3 py-10 opacity-70">
+					<MessageSquareDashed className="size-10" strokeWidth={1.5} />
+					<p>No questions yet. Ask the first one.</p>
+				</div>
 			) : (
 				<ul ref={list} aria-label="Questions" className="flex flex-col gap-2">
 					{questions.map((question) => (

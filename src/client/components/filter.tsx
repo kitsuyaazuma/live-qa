@@ -1,4 +1,11 @@
-import { Funnel } from 'lucide-react';
+import {
+	CircleCheck,
+	Funnel,
+	type LucideIcon,
+	MessageSquare,
+	UserRound,
+	Users,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Question } from '../../protocol';
 import { Modal } from './modal';
@@ -6,8 +13,25 @@ import { Modal } from './modal';
 type Progress = 'open' | 'answered';
 type Asker = 'you' | 'others';
 
-const PROGRESS: Record<Progress, string> = { open: 'Not yet answered', answered: 'Answered' };
-const ASKER: Record<Asker, string> = { you: 'You', others: 'Others' };
+type Option = { label: string; icon: LucideIcon };
+
+const PROGRESS: Record<Progress, Option> = {
+	open: { label: 'Not yet answered', icon: MessageSquare },
+	answered: { label: 'Answered', icon: CircleCheck },
+};
+const ASKER: Record<Asker, Option> = {
+	you: { label: 'You', icon: UserRound },
+	others: { label: 'Others', icon: Users },
+};
+
+function Choice({ option }: { option: Option }) {
+	return (
+		<span className="inline-flex items-center gap-2">
+			<option.icon className="size-4 opacity-70" />
+			{option.label}
+		</span>
+	);
+}
 
 function toggled<T>(chosen: Set<T>, value: T): Set<T> {
 	const next = new Set(chosen);
@@ -57,7 +81,7 @@ export function Filter({ filter, asked }: { filter: ReturnType<typeof useFilter>
 								disabled={filter.progress.size === 1 && filter.progress.has(value)}
 								onChange={() => filter.setProgress(toggled(filter.progress, value))}
 							/>
-							{PROGRESS[value]}
+							<Choice option={PROGRESS[value]} />
 						</label>
 					))}
 				</fieldset>
@@ -72,7 +96,7 @@ export function Filter({ filter, asked }: { filter: ReturnType<typeof useFilter>
 								disabled={filter.asker.size === 1 && filter.asker.has(value)}
 								onChange={() => filter.setAsker(toggled(filter.asker, value))}
 							/>
-							{ASKER[value]}
+							<Choice option={ASKER[value]} />
 							{value === 'you' && asked === 0 && (
 								<span className="text-xs opacity-70">You have not asked one yet.</span>
 							)}
