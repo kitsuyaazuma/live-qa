@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.2](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.1...v0.0.2) (2026-09-19)
+
+
+### Features
+
+* put icons on the audience screen ([#5](https://github.com/kitsuyaazuma/live-qa/issues/5)) ([6c7e0b0](https://github.com/kitsuyaazuma/live-qa/commit/6c7e0b04f25221431278c11a340f164d0cd7c042))
+* put icons on the operator screen ([#7](https://github.com/kitsuyaazuma/live-qa/issues/7)) ([e18e391](https://github.com/kitsuyaazuma/live-qa/commit/e18e39107c39dd52dd1e899ff6e5d9cc0fe7d77a))
+* put icons on the stage screen ([#8](https://github.com/kitsuyaazuma/live-qa/issues/8)) ([170f829](https://github.com/kitsuyaazuma/live-qa/commit/170f8290b17cee9331b317f2e905c0e4487b0982))
+
 ## 0.0.1 (2026-09-19)
 
 
