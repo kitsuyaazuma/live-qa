@@ -29,6 +29,7 @@ const ROOMS = [
 	'named',
 	'archive',
 	'notice',
+	'withdraw',
 	'badstatus',
 	'bloat',
 	'bust',
@@ -254,6 +255,32 @@ describe('export', () => {
 		expect(anonymous.status).toBe(401);
 		expect(csv.headers.get('content-disposition')).toBe('attachment; filename="export.csv"');
 		expect(text.split('\r\n')[1]).toMatch(new RegExp(`^q1,.*,dismissed,0,,${TEXT},,$`));
+	});
+});
+
+describe('withdrawing', () => {
+	it('takes a question back for its asker and refuses another phone', async () => {
+		await call('/api/rooms/withdraw/questions', {
+			method: 'POST',
+			headers: { 'cf-connecting-ip': 'withdraw' },
+			body: JSON.stringify({ id: 'q1', text: TEXT, voterId: 'phone-a' }),
+		});
+		const take = (voterId: string) =>
+			call('/api/rooms/withdraw/questions/q1/withdraw', {
+				method: 'POST',
+				headers: { 'cf-connecting-ip': 'withdraw' },
+				body: JSON.stringify({ voterId }),
+			});
+
+		const stranger = await take('phone-b');
+		const asker = await take('phone-a');
+		const missing = await call('/api/rooms/withdraw/questions/nope/withdraw', {
+			method: 'POST',
+			body: JSON.stringify({ voterId: 'phone-a' }),
+		});
+
+		expect([stranger.status, asker.status, missing.status]).toEqual([403, 200, 404]);
+		expect(await asker.json()).toEqual({ status: 'withdrawn', version: 2 });
 	});
 });
 

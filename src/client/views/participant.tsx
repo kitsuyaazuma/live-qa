@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import type { Question, Status } from '../../protocol';
+import { type Question, type Status, withdrawable } from '../../protocol';
 import { AskForm } from '../components/ask-form';
 import { BackToTop } from '../components/back-to-top';
 import { Filter, useFilter } from '../components/filter';
@@ -21,6 +21,7 @@ const RANK: Record<Status, number> = {
 	answered: 2,
 	dismissed: 3,
 	archived: 3,
+	withdrawn: 3,
 };
 
 function ordered(questions: Question[], order: Order): Question[] {
@@ -113,6 +114,11 @@ export function Participant({ roomId }: { roomId: string }) {
 							now={now}
 							shown="headline"
 							onVote={() => void room.toggleVote(question.id)}
+							onWithdraw={
+								room.asked.has(question.id) && withdrawable(question, now)
+									? () => void room.withdraw(question.id)
+									: undefined
+							}
 						/>
 					))}
 				</ul>

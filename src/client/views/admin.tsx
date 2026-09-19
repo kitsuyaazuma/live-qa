@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import type { Question, Status } from '../../protocol';
+import type { Question, Status, Target } from '../../protocol';
 import * as api from '../api';
 import { Operator } from '../components/operator';
 import { Page } from '../components/page';
@@ -57,7 +57,7 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 	const listed = lanes[offered.includes(lane) ? lane : 'live'];
 	useFlip(list);
 
-	async function move(question: Question, to: Exclude<Status, 'pending'>) {
+	async function move(question: Question, to: Target) {
 		setBusy(question.id);
 		try {
 			await api.setStatus(roomId, question.id, to);

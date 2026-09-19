@@ -306,6 +306,43 @@ describe('Room', () => {
 		expect(taken).toMatchObject({ version: 2, notice: '' });
 	});
 
+	it('lets the asker take a young question back, and nobody else', async () => {
+		const r = room('withdraw');
+		await r.postQuestion({ id: 'q1', text: TEXT, owner: 'phone-a' });
+		await r.postQuestion({ id: 'q2', text: TEXT });
+
+		const stranger = await r.withdraw({ id: 'q1', voterId: 'phone-b' });
+		const ownerless = await r.withdraw({ id: 'q2', voterId: 'phone-a' });
+		const taken = await r.withdraw({ id: 'q1', voterId: 'phone-a' });
+		const again = await r.withdraw({ id: 'q1', voterId: 'phone-a' });
+
+		expect([stranger.status, ownerless.status, taken.status, again.status]).toEqual([
+			'not-yours',
+			'not-yours',
+			'withdrawn',
+			'unchanged',
+		]);
+		const seen = (await r.snapshot({ view: 'audience' })).questions;
+		expect(seen.find((q) => q.id === 'q1')).toMatchObject({ status: 'withdrawn', text: '' });
+	});
+
+	it('keeps a question that is old or already on the stage', async () => {
+		const r = room('keep');
+		await r.postQuestion({ id: 'old', text: TEXT, owner: 'phone-a' });
+		await r.postQuestion({ id: 'staged', text: TEXT, owner: 'phone-a' });
+		await runInDurableObject(r, (_instance, state) => {
+			state.storage.sql.exec(
+				"UPDATE questions SET created_at = created_at - 6 * 60 * 1000 WHERE id = 'old'",
+			);
+		});
+		await r.setStatus({ id: 'staged', status: 'answering' });
+
+		const old = await r.withdraw({ id: 'old', voterId: 'phone-a' });
+		const staged = await r.withdraw({ id: 'staged', voterId: 'phone-a' });
+
+		expect([old.status, staged.status]).toEqual(['too-late', 'too-late']);
+	});
+
 	it('archives every question at once and blanks them for the audience', async () => {
 		const r = room('archive');
 		await r.postQuestion({ id: 'q1', text: TEXT });
@@ -327,7 +364,7 @@ describe('Room', () => {
 		]);
 	});
 
-	it('rebuilds a questions table from before archiving existed', async () => {
+	it('rebuilds a questions table from before the newer statuses existed', async () => {
 		const r = room('legacy');
 		await r.postQuestion({ id: 'q1', text: TEXT });
 		await runInDurableObject(r, (_instance, state) => {
@@ -344,7 +381,8 @@ describe('Room', () => {
 					created_at INTEGER NOT NULL,
 					asker TEXT
 				) STRICT;
-				INSERT INTO questions SELECT * FROM questions_then;
+				INSERT INTO questions (id, text, translation, votes, status, version, created_at, asker)
+					SELECT id, text, translation, votes, status, version, created_at, asker FROM questions_then;
 				DROP TABLE questions_then;`);
 		});
 		await evictDurableObject(r);

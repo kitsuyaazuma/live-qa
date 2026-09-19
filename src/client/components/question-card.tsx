@@ -12,6 +12,7 @@ export function QuestionCard({
 	now,
 	shown,
 	onVote,
+	onWithdraw,
 }: {
 	question: Question;
 	voted: boolean;
@@ -19,6 +20,8 @@ export function QuestionCard({
 	now: number;
 	shown: TranslationShown;
 	onVote: () => void;
+	/** Offered only to the asker, and only while the question can still go. */
+	onWithdraw?: () => void;
 }) {
 	const line = shownLine(question, shown);
 	const answering = question.status === 'answering';
@@ -60,6 +63,16 @@ export function QuestionCard({
 					)}
 					{answered && <span className="badge badge-accent badge-soft badge-sm">Answered</span>}
 					{mine && <span className="badge badge-secondary badge-soft badge-sm">Yours</span>}
+					{onWithdraw && (
+						<button
+							type="button"
+							className={`btn-xs ${answering ? GHOST : 'btn btn-ghost'}`}
+							aria-label="Take your question back"
+							onClick={onWithdraw}
+						>
+							Take back
+						</button>
+					)}
 					<time
 						dateTime={new Date(question.createdAt).toISOString()}
 						className="ml-auto text-xs opacity-70"

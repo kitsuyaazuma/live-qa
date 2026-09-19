@@ -27,6 +27,7 @@ interface RoomState {
 	error: string | null;
 	ask: (text: string, named: boolean) => Promise<boolean>;
 	toggleVote: (id: string) => Promise<void>;
+	withdraw: (id: string) => Promise<void>;
 	dismissError: () => void;
 }
 
@@ -106,7 +107,7 @@ export function useRoom(roomId: string): RoomState {
 		async (text: string, named: boolean) => {
 			const id = crypto.randomUUID();
 			try {
-				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous');
+				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous', voterId());
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
 				refresh.current();
@@ -137,6 +138,19 @@ export function useRoom(roomId: string): RoomState {
 		[roomId, voted],
 	);
 
+	const withdraw = useCallback(
+		async (id: string) => {
+			try {
+				await api.withdraw(roomId, id, voterId());
+				setMine((current) => current.filter((question) => question.id !== id));
+				refresh.current();
+			} catch (cause) {
+				setError(cause instanceof Error ? cause.message : 'could not take the question back');
+			}
+		},
+		[roomId],
+	);
+
 	const questions = useMemo(() => {
 		const version = snapshot?.version ?? 0;
 		const seen = new Set((snapshot?.questions ?? []).map((question) => question.id));
@@ -160,6 +174,7 @@ export function useRoom(roomId: string): RoomState {
 		error,
 		ask,
 		toggleVote,
+		withdraw,
 		dismissError: useCallback(() => setError(null), []),
 	};
 }

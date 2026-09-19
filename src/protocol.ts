@@ -8,13 +8,28 @@ export const STATUSES = [
 	'answered',
 	'dismissed',
 	'archived',
+	'withdrawn',
 ] as const;
 
 export type Status = (typeof STATUSES)[number];
 
+/** Where an operator can move a question. Only the asker withdraws; nothing returns to review. */
+export type Target = Exclude<Status, 'pending' | 'withdrawn'>;
+
 /** Off every audience screen. The row still travels, blank, so a screen can drop its own copy. */
 export function offScreen(status: Status): boolean {
-	return status === 'dismissed' || status === 'archived';
+	return status === 'dismissed' || status === 'archived' || status === 'withdrawn';
+}
+
+/** Long enough to notice a mis-send, short enough that a question on the stage stays put. */
+export const WITHDRAW_MS = 5 * 60_000;
+
+/** The asker may still take it back: young, and nobody has picked it up yet. */
+export function withdrawable(question: Question, now: number): boolean {
+	return (
+		(question.status === 'pending' || question.status === 'published') &&
+		now - question.createdAt <= WITHDRAW_MS
+	);
 }
 
 /** Null, on `Question`, means nothing has tried to translate it yet. */
@@ -72,6 +87,10 @@ export type StatusResult =
 	| { status: 'changed' | 'unchanged'; version: number; question: Question }
 	| UnknownQuestion;
 
+export type WithdrawResult =
+	| { status: 'withdrawn' | 'unchanged' | 'not-yours' | 'too-late'; version: number }
+	| UnknownQuestion;
+
 export type TranslationResult =
 	| { status: 'applied'; version: number; question: Question }
 	| UnknownQuestion;
@@ -95,12 +114,11 @@ export function requireText(value: string): string {
 	return text;
 }
 
-/** Nothing returns to `pending`: a reviewed question must not become unreviewed. */
-export function requireTarget(value: string): Exclude<Status, 'pending'> {
-	if (value === 'pending' || !(STATUSES as readonly string[]).includes(value)) {
-		throw new Error(`status must be one of: ${STATUSES.slice(1).join(', ')}`);
-	}
-	return value as Exclude<Status, 'pending'>;
+const TARGETS: readonly string[] = STATUSES.filter((s) => s !== 'pending' && s !== 'withdrawn');
+
+export function requireTarget(value: string): Target {
+	if (!TARGETS.includes(value)) throw new Error(`status must be one of: ${TARGETS.join(', ')}`);
+	return value as Target;
 }
 
 export const NAME_MAX = 40;

@@ -139,14 +139,37 @@ api.post('/api/rooms/:roomId/questions', async (c) => {
 	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
 	const text = checked(() => requireText(asString(input.text, 'text')));
 	const asker = await askerFor(c, input.as);
+	const owner =
+		'voterId' in input
+			? checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'))
+			: null;
 	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, roomId).postQuestion({ id, text, asker });
+	const result = await room(c.env, roomId).postQuestion({ id, text, asker, owner });
 	if ('status' in result) {
 		const why = result.status === 'room-closed' ? 'closed to new questions' : 'full';
 		return c.json({ error: `this room is ${why}` }, 409);
 	}
 	return c.json(result, result.created ? 201 : 200);
+});
+
+const WITHDRAW_STATUS = {
+	withdrawn: 200,
+	unchanged: 200,
+	'unknown-question': 404,
+	'not-yours': 403,
+	'too-late': 409,
+} as const;
+
+api.post('/api/rooms/:roomId/questions/:questionId/withdraw', async (c) => {
+	await limited(c.env.VOTE_LIMIT, c);
+	const input = await body(c);
+	const id = checked(() => requireId(c.req.param('questionId'), 'questionId'));
+	const voterId = checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'));
+	const roomId = await known(c.env, c.req.param('roomId'));
+
+	const result = await room(c.env, roomId).withdraw({ id, voterId });
+	return c.json(result, WITHDRAW_STATUS[result.status]);
 });
 
 api.put('/api/rooms/:roomId/questions/:questionId/vote', async (c) => {

@@ -7,6 +7,7 @@ import type {
 	Snapshot,
 	StatusResult,
 	VoteResult,
+	WithdrawResult,
 } from '../protocol';
 
 const JSON_BODY = { 'content-type': 'application/json' };
@@ -51,11 +52,24 @@ export function ask(
 	id: string,
 	text: string,
 	as: 'me' | 'anonymous',
+	voterId: string,
 ): Promise<Asked> {
 	return send(`${rooms(roomId)}/questions`, {
 		method: 'POST',
 		headers: JSON_BODY,
-		body: JSON.stringify({ id, text, as }),
+		body: JSON.stringify({ id, text, as, voterId }),
+	});
+}
+
+export function withdraw(
+	roomId: string,
+	questionId: string,
+	voterId: string,
+): Promise<WithdrawResult> {
+	return send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}/withdraw`, {
+		method: 'POST',
+		headers: JSON_BODY,
+		body: JSON.stringify({ voterId }),
 	});
 }
 

@@ -64,6 +64,9 @@ beforeEach(() => {
 			if (offered === etag) return Promise.resolve(new Response(null, { status: 304 }));
 			return Promise.resolve(json(served, { headers: { etag } }));
 		}
+		if (method === 'POST' && url.includes('/withdraw')) {
+			return Promise.resolve(json({ status: 'withdrawn', version: served.version }));
+		}
 		if (method === 'POST') {
 			// The id is the client's, which is the point: it is what gets remembered.
 			const sent = JSON.parse(String(init?.body)) as { id: string; text: string };
@@ -171,6 +174,22 @@ describe('useRoom', () => {
 
 		expect(result.current.voted.has('q1')).toBe(false);
 		expect(result.current.error).not.toBeNull();
+	});
+
+	it('drops an own question the moment it is taken back', async () => {
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+		await act(async () => {
+			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。', false);
+		});
+		expect(result.current.questions).toHaveLength(1);
+
+		await act(async () => {
+			await result.current.withdraw(asked?.id ?? '');
+		});
+
+		expect(result.current.questions).toEqual([]);
+		expect(result.current.error).toBeNull();
 	});
 
 	it('leaves dismissed and archived questions off the screen', async () => {

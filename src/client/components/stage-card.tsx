@@ -1,11 +1,9 @@
-import type { Question, Status } from '../../protocol';
+import type { Question, Status, Target } from '../../protocol';
 import { Check, Eye, EyeOff, Pin, PinOff, ThumbsUp, Undo } from '../icons';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
 import { Byline } from './byline';
 import { GHOST } from './ghost';
-
-type Target = Exclude<Status, 'pending'>;
 
 interface Move {
 	to: Target;

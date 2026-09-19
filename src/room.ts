@@ -16,6 +16,8 @@ import {
 	type StoredTranslation,
 	type TranslationResult,
 	type VoteResult,
+	type WithdrawResult,
+	withdrawable,
 } from './protocol';
 import { type TranslationSettings, WorkersAiTranslator } from './translate';
 
@@ -49,10 +51,11 @@ CREATE TABLE IF NOT EXISTS questions (
 	translation TEXT,
 	votes INTEGER NOT NULL DEFAULT 0 CHECK (votes >= 0),
 	status TEXT NOT NULL DEFAULT 'pending'
-		CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed', 'archived')),
+		CHECK (status IN ('pending', 'published', 'answering', 'answered', 'dismissed', 'archived', 'withdrawn')),
 	version INTEGER NOT NULL,
 	created_at INTEGER NOT NULL,
-	asker TEXT
+	asker TEXT,
+	owner TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS questions_version ON questions (version);
@@ -155,8 +158,10 @@ export class Room extends DurableObject<Env> {
 					.exec<{ name: string }>(`SELECT name FROM pragma_table_info('${table}')`)
 					.toArray()
 					.map((column) => column.name);
-			if (!columns('questions').includes('asker')) {
-				sql.exec('ALTER TABLE questions ADD COLUMN asker TEXT');
+			for (const column of ['asker', 'owner']) {
+				if (!columns('questions').includes(column)) {
+					sql.exec(`ALTER TABLE questions ADD COLUMN ${column} TEXT`);
+				}
 			}
 			if (!columns('room').includes('open')) {
 				sql.exec('ALTER TABLE room ADD COLUMN open INTEGER NOT NULL DEFAULT 1');
@@ -164,15 +169,17 @@ export class Room extends DurableObject<Env> {
 			if (!columns('room').includes('notice')) {
 				sql.exec("ALTER TABLE room ADD COLUMN notice TEXT NOT NULL DEFAULT ''");
 			}
-			// SQLite cannot widen a check constraint, so a table from before `archived`
-			// is rebuilt; its indexes go with the old table and the schema puts them back.
+			// SQLite cannot widen a check constraint, so a table from before the newest
+			// status is rebuilt; its indexes go with the old table and the schema puts them back.
 			const definition = sql
 				.exec<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'questions'")
 				.one().sql;
-			if (!definition.includes("'archived'")) {
+			if (!definition.includes("'withdrawn'")) {
 				sql.exec('ALTER TABLE questions RENAME TO questions_old');
 				sql.exec(SCHEMA);
-				sql.exec(`INSERT INTO questions (${COLUMNS}) SELECT ${COLUMNS} FROM questions_old`);
+				sql.exec(
+					`INSERT INTO questions (${COLUMNS}, owner) SELECT ${COLUMNS}, owner FROM questions_old`,
+				);
 				sql.exec('DROP TABLE questions_old');
 				sql.exec(SCHEMA);
 			}
@@ -195,6 +202,8 @@ export class Room extends DurableObject<Env> {
 		id: string;
 		text: string;
 		asker?: Asker | null;
+		/** The voter id of the device that asked; only it may withdraw. */
+		owner?: string | null;
 	}): Promise<AskResult> {
 		const id = requireId(input.id, 'id');
 		const text = requireText(input.text);
@@ -208,14 +217,15 @@ export class Room extends DurableObject<Env> {
 
 		const created =
 			sql.exec(
-				`INSERT OR IGNORE INTO questions (id, text, status, version, created_at, asker)
-				 VALUES (?, ?, ?, ?, ?, ?)`,
+				`INSERT OR IGNORE INTO questions (id, text, status, version, created_at, asker, owner)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 				id,
 				text,
 				this.moderated ? 'pending' : 'published',
 				next,
 				Date.now(),
 				input.asker ? JSON.stringify(input.asker) : null,
+				input.owner ?? null,
 			).rowsWritten > 0;
 
 		if (created) {
@@ -299,6 +309,27 @@ export class Room extends DurableObject<Env> {
 		this.commit(next);
 
 		return { status: 'changed', version: this.version, question: this.question(id) };
+	}
+
+	async withdraw(input: { id: string; voterId: string }): Promise<WithdrawResult> {
+		const id = requireId(input.id, 'id');
+		const voterId = requireId(input.voterId, 'voterId');
+		const sql = this.ctx.storage.sql;
+
+		if (!this.exists(id)) return { status: 'unknown-question', version: this.version };
+		const { owner } = sql
+			.exec<{ owner: string | null }>('SELECT owner FROM questions WHERE id = ?', id)
+			.one();
+		if (owner === null || owner !== voterId) return { status: 'not-yours', version: this.version };
+
+		const current = this.question(id);
+		if (current.status === 'withdrawn') return { status: 'unchanged', version: this.version };
+		if (!withdrawable(current, Date.now())) return { status: 'too-late', version: this.version };
+
+		const next = this.version + 1;
+		sql.exec(`UPDATE questions SET status = 'withdrawn', version = ? WHERE id = ?`, next, id);
+		this.commit(next);
+		return { status: 'withdrawn', version: this.version };
 	}
 
 	/** Failures keep a running count so a retry policy has something to read. */
@@ -524,7 +555,7 @@ export class Room extends DurableObject<Env> {
 		return this.ctx.storage.sql
 			.exec<{ id: string; text: string }>(
 				`SELECT id, text FROM questions
-				 WHERE status NOT IN ('dismissed', 'archived')
+				 WHERE status NOT IN ('dismissed', 'archived', 'withdrawn')
 				   AND (translation IS NULL
 				        OR (json_valid(translation)
 				            AND json_extract(translation, '$.ok') = 0

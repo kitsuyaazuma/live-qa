@@ -59,7 +59,7 @@ Own domain: `DOMAIN=qa.example.com pnpm run deploy`, for a zone on the same acco
 | Admin | `/` → **Host** | creates the room and names its operators. The name is the link and the QR code: `/r/example` |
 | Operator | `/r/example/admin` | shows, hides, puts on the stage, marks answered |
 | Operator | `/r/example/present` | on the projector: QR code, address, top questions by votes |
-| Audience | `/r/example` | asks, anonymously or under their name; upvotes |
+| Audience | `/r/example` | asks, anonymously or under their name; upvotes; takes a question back within five minutes |
 
 Admins can do everything an operator can. The gear on the admin and present screens opens the room's settings:
 
