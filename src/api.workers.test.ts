@@ -35,6 +35,7 @@ const ROOMS = [
 	'create',
 	'crowd',
 	'etag',
+	'export',
 	'fallback',
 	'fresh',
 	'gate',
@@ -232,6 +233,25 @@ describe('what the edge turns away', () => {
 
 		expect(refused.status).toBe(409);
 		expect(retried.status).toBe(200);
+	});
+});
+
+describe('export', () => {
+	it('hands an operator every question as csv, and nobody else', async () => {
+		await post('export', 'q1');
+		await call('/api/rooms/export/questions/q1', {
+			method: 'PATCH',
+			headers: ADMIN,
+			body: JSON.stringify({ status: 'dismissed' }),
+		});
+
+		const anonymous = await call('/api/rooms/export/export');
+		const csv = await call('/api/rooms/export/export', { headers: ADMIN });
+		const text = await csv.text();
+
+		expect(anonymous.status).toBe(401);
+		expect(csv.headers.get('content-disposition')).toBe('attachment; filename="export.csv"');
+		expect(text.split('\r\n')[1]).toMatch(new RegExp(`^q1,.*,dismissed,0,,${TEXT},,$`));
 	});
 });
 

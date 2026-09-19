@@ -23,6 +23,7 @@ import {
 	sessionSecret,
 } from './auth';
 import { roomLocationFromEnv } from './config';
+import { toCsv } from './export';
 import {
 	type Account,
 	type Asker,
@@ -445,6 +446,16 @@ api.get('/api/rooms/:roomId/events', operator, async (c) => {
 			// Nothing in the path should hold a frame back waiting for more.
 			'x-accel-buffering': 'no',
 		},
+	});
+});
+
+api.get('/api/rooms/:roomId/export', operator, async (c) => {
+	const roomId = c.req.param('roomId');
+	const snapshot = await room(c.env, roomId).snapshot({ view: 'operator' });
+	return c.body(toCsv(snapshot.questions), 200, {
+		'content-type': 'text/csv; charset=utf-8',
+		'content-disposition': `attachment; filename="${roomId.replace(/[^a-z0-9-]/gi, '-')}.csv"`,
+		...NO_STORE,
 	});
 });
 

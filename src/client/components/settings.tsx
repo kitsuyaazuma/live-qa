@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import * as api from '../api';
-import { External, Gear } from '../icons';
+import { Download, External, Gear } from '../icons';
 import { TRANSLATION_SHOWN, type TranslationShown } from '../translation';
 import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
@@ -108,6 +108,22 @@ export function Settings({
 						<p className="text-xs opacity-70">This room has no translator configured.</p>
 					)}
 				</fieldset>
+				<div className="flex flex-col gap-2">
+					<p className="text-base">
+						Export
+						<span className="block text-xs opacity-70">
+							Every question with its votes, status and translation.
+						</span>
+					</p>
+					<a
+						href={`/api/rooms/${encodeURIComponent(roomId)}/export`}
+						download
+						className="btn btn-sm self-start gap-1.5"
+					>
+						<Download className="size-4" />
+						Download as CSV
+					</a>
+				</div>
 				{me?.admin && <Operators roomId={roomId} />}
 				{error && (
 					<p role="alert" className="text-error text-sm">
