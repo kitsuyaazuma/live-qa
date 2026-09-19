@@ -1,5 +1,5 @@
 import branding from '@branding/branding.json';
-import { Megaphone } from 'lucide-react';
+import { Lock, Megaphone, MessageSquareDashed, Smartphone, WifiOff } from 'lucide-react';
 import { lazy, Suspense, useRef } from 'react';
 import * as api from '../api';
 import { Banner } from '../components/banner';
@@ -70,18 +70,32 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 						<Qr text={link} className="rounded-box w-full max-w-xs" />
 					</Suspense>
 					<div>
-						<p className="text-lg opacity-70">Join at</p>
+						<p className="flex items-center justify-center gap-1.5 text-lg opacity-70">
+							<Smartphone className="size-5" />
+							Join at
+						</p>
 						<Address link={link} />
 					</div>
 					{room.connection !== 'live' && (
-						<span className="badge badge-warning badge-soft">not live</span>
+						<span className="badge badge-warning badge-soft gap-1">
+							<WifiOff className="size-3" />
+							not live
+						</span>
 					)}
-					{!room.open && <span className="badge badge-soft">closed to new questions</span>}
+					{!room.open && (
+						<span className="badge badge-soft gap-1">
+							<Lock className="size-3" />
+							closed to new questions
+						</span>
+					)}
 				</aside>
 
 				<main className="flex min-w-0 flex-col gap-6">
 					{listed.length === 0 ? (
-						<p className="py-10 text-3xl opacity-70">Waiting for the first question.</p>
+						<div className="flex flex-col items-center gap-4 py-10 text-3xl opacity-70">
+							<MessageSquareDashed className="size-16" strokeWidth={1.5} />
+							<p>Waiting for the first question.</p>
+						</div>
 					) : (
 						<ol ref={list} aria-label="Questions on the stage" className="flex flex-col gap-3">
 							{listed.map((question) => (
