@@ -73,19 +73,13 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 						<p className="text-lg opacity-70">Join at</p>
 						<Address link={link} />
 					</div>
-					{room.notice && (
-						<p role="status" className="alert alert-info alert-soft w-full text-left text-lg">
-							<Megaphone className="size-6 shrink-0" />
-							<span>{room.notice}</span>
-						</p>
-					)}
 					{room.connection !== 'live' && (
 						<span className="badge badge-warning badge-soft">not live</span>
 					)}
 					{!room.open && <span className="badge badge-soft">closed to new questions</span>}
 				</aside>
 
-				<main className="min-w-0">
+				<main className="flex min-w-0 flex-col gap-6">
 					{listed.length === 0 ? (
 						<p className="py-10 text-3xl opacity-70">Waiting for the first question.</p>
 					) : (
@@ -101,6 +95,12 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 								/>
 							))}
 						</ol>
+					)}
+					{room.notice && (
+						<p role="status" className="alert alert-info alert-soft mt-auto text-2xl">
+							<Megaphone className="size-7 shrink-0" />
+							<span>{room.notice}</span>
+						</p>
 					)}
 				</main>
 			</div>

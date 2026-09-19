@@ -28,6 +28,9 @@ if (BASE.hostname !== 'localhost') {
 const Q1 = '本番障害のポストモーテムは、どのくらいの粒度で全社に共有していますか。';
 const Q2 = '小さなチームでも、観測性に投資する順番はどう決めましたか。';
 const Q3 = '新しい技術を採用するとき、撤退の基準はどう決めていますか。';
+const REMARK = 'マイクの音が少し小さいです。';
+const NOTICE = '質問は翻訳されるので、日本語でどうぞ。';
+const NEXT = '次のセッションは 14:00 から。';
 
 /** The same shape hono signs: value, a dot, the base64 hmac of the value. */
 function session(userId) {
@@ -171,6 +174,16 @@ async function tap(locator) {
 	await locator.click();
 }
 
+// A click scrolls its pane to the target; the screens go back to the top afterwards.
+async function settle() {
+	for (const frame of [S, O]) await frame.locator('body').evaluate(() => scrollTo(0, 0));
+}
+
+async function closeSettings() {
+	await page.keyboard.press('Escape');
+	await settle();
+}
+
 async function write(frame, text) {
 	const field = frame.getByRole('textbox', { name: 'Your question' });
 	await tap(field);
@@ -197,13 +210,31 @@ if (SHOT) {
 }
 await beat(2200);
 
+async function notice(text) {
+	const field = S.getByRole('textbox', { name: /Notice/ });
+	await tap(field);
+	await field.fill('');
+	await field.pressSequentially(text, { delay: 40 });
+	await beat(300);
+	await tap(S.getByRole('button', { name: 'Show', exact: true }));
+	await beat(800);
+}
+
+await tap(S.getByLabel('Settings'));
+await beat(800);
+await notice(NOTICE);
+await closeSettings();
+await B.getByText(NOTICE).waitFor({ timeout: 15000 });
+mark('scene 1: the notice is up');
+await beat(1500);
+
 await tap(A.getByRole('button', { name: /Join/ }));
 const name = A.getByLabel('Room name');
 await tap(name);
 await name.pressSequentially(ROOM, { delay: 110 });
 await beat(500);
 await tap(A.getByRole('button', { name: 'Join', exact: true }));
-await A.getByRole('textbox', { name: 'Your question' }).waitFor();
+await A.getByText(NOTICE).waitFor({ timeout: 15000 });
 await beat(1200);
 
 // The second question is typed while the first one's translation is on its way.
@@ -218,6 +249,18 @@ await S.getByText(Q1).locator('..').getByText(/\w{4}/).first().waitFor({ timeout
 mark('scene 2: translated');
 await beat(2000);
 
+await write(B, REMARK);
+await S.getByText(REMARK).waitFor({ timeout: 15000 });
+await beat(1800);
+await tap(
+	cards(B, 'Questions')
+		.filter({ hasText: REMARK })
+		.getByRole('button', { name: 'Take your question back' }),
+);
+await S.getByText(REMARK).waitFor({ state: 'hidden', timeout: 15000 });
+mark('scene 3: taken back');
+await beat(1500);
+
 const live = await audience();
 const idOf = (text) => live.find((q) => q.text === text)?.id;
 const [q1, q2] = [idOf(Q1), idOf(Q2)];
@@ -231,7 +274,7 @@ for (const voter of ['v1', 'v2', 'v3', 'v4']) {
 		body: JSON.stringify({ voterId: voter, voted: true }),
 	});
 }
-mark('scene 3: votes are in');
+mark('scene 4: votes are in');
 await beat(3000);
 await tap(A.getByRole('tab', { name: 'Recent' }));
 await beat(1600);
@@ -242,14 +285,14 @@ await tap(S.getByLabel('Settings'));
 await beat(900);
 await tap(S.getByRole('radio', { name: /Full/ }));
 await beat(2000);
-await page.keyboard.press('Escape');
+await closeSettings();
 await beat(2000);
 
 await tap(S.getByLabel('Settings'));
 await beat(700);
 await tap(S.getByRole('checkbox', { name: /Review before showing/ }));
 await beat(1200);
-await page.keyboard.press('Escape');
+await closeSettings();
 await A.getByText('Questions appear once reviewed.').waitFor({ timeout: 15000 });
 mark('scene 5: the room is moderated');
 await beat(1200);
@@ -262,6 +305,7 @@ await tap(O.getByLabel('Show to the audience'));
 await B.getByText(Q3).waitFor({ timeout: 15000 });
 mark('scene 5: published');
 await beat(2500);
+await settle();
 
 await tap(O.getByRole('tab', { name: /Live/ }));
 await beat(1200);
@@ -269,6 +313,7 @@ await tap(O.locator(`li[data-key="${q1}"]`).getByLabel('Put on the stage'));
 await S.locator(`li[data-key="${q1}"].bg-primary`).waitFor({ timeout: 15000 });
 mark('scene 6: on the stage');
 await beat(1500);
+await settle();
 await page.screenshot({ path: `${OUT}still.png` });
 await beat(1500);
 await tap(S.locator(`li[data-key="${q1}"]`).getByLabel('Mark answered'));
@@ -278,9 +323,30 @@ await tap(A.getByLabel('Filter'));
 await beat(900);
 await tap(A.getByRole('checkbox', { name: 'Answered', exact: true }));
 await beat(1800);
-await page.keyboard.press('Escape');
+await closeSettings();
+await beat(2500);
+mark('scene 7: answered');
+
+await tap(S.getByLabel('Settings'));
+await beat(800);
+await tap(S.getByRole('checkbox', { name: /Accepting questions/ }));
+await A.getByText('This room is closed to new questions.').waitFor({ timeout: 15000 });
+mark('scene 8: closed');
+await beat(1500);
+await tap(S.getByRole('button', { name: 'Clear the room' }));
+await beat(700);
+await tap(S.getByRole('button', { name: 'Archive', exact: true }));
+await S.getByText('Waiting for the first question.').waitFor({ timeout: 15000 });
+mark('scene 8: cleared for the next talk');
+await beat(800);
+await notice(NEXT);
+await tap(S.getByRole('checkbox', { name: /Accepting questions/ }));
+await beat(600);
+await closeSettings();
+await A.getByText(NEXT).waitFor({ timeout: 15000 });
+await A.getByRole('textbox', { name: 'Your question' }).waitFor({ timeout: 15000 });
+mark('scene 8: open for the next talk');
 await beat(3500);
-mark('scene 7: done');
 
 await page.screenshot({ path: `${OUT}final.png` });
 const video = page.video();
