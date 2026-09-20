@@ -335,6 +335,16 @@ describe('room settings', () => {
 	});
 });
 
+describe('privacy page', () => {
+	it('serves the page from the worker', async () => {
+		const page = await call('/privacy');
+
+		expect(page.status).toBe(200);
+		expect(page.headers.get('content-type')).toContain('text/html');
+		expect(await page.text()).toContain('run by the organiser,');
+	});
+});
+
 describe('signing in', () => {
 	it('turns a provider away until it has been configured', async () => {
 		const google = await call('/auth/google?next=/r/keynote/admin');

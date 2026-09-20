@@ -51,7 +51,10 @@
 		"TRANSLATION_CONTEXT": "",
 		// Honoured only when the object is first created. Empty lets Cloudflare
 		// place it at whichever colo reaches it first.
-		"ROOM_LOCATION_HINT": ""
+		"ROOM_LOCATION_HINT": "",
+		// Named on /privacy; empty says "the organiser".
+		"PRIVACY_OPERATOR": "",
+		"PRIVACY_CONTACT": ""
 	},
 	// The directory is filled in by the vite plugin at build time. Page loads that
 	// match no file get index.html straight from here, so the routes the browser
@@ -59,7 +62,7 @@
 	"assets": {
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
-		"run_worker_first": ["/auth/*", "/api/*"]
+		"run_worker_first": ["/auth/*", "/api/*", "/privacy"]
 	},
 	"observability": {
 		"enabled": true

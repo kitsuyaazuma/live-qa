@@ -18,6 +18,10 @@ export function Credit() {
 				>
 					v{version}
 				</a>
+				<span aria-hidden="true">·</span>
+				<a href="/privacy" className="link link-hover">
+					Privacy
+				</a>
 			</aside>
 		</footer>
 	);
