@@ -341,11 +341,22 @@ describe('privacy page', () => {
 
 		expect(page.status).toBe(200);
 		expect(page.headers.get('content-type')).toContain('text/html');
-		expect(await page.text()).toContain('run by the organiser,');
+		// The name comes from a developer's .dev.vars, so only the sentence is checked.
+		expect(await page.text()).toContain('is run by ');
 	});
 });
 
 describe('signing in', () => {
+	it('lists the providers it can sign someone in with', async () => {
+		const response = await call('/api/providers');
+
+		const { providers } = (await response.json()) as { providers: string[] };
+
+		expect(response.headers.get('cache-control')).toBe('public, max-age=300');
+		// Which ones depends on a developer's .dev.vars; the shape does not.
+		expect(providers.every((p) => p === 'google' || p === 'github')).toBe(true);
+	});
+
 	it('turns a provider away until it has been configured', async () => {
 		const google = await call('/auth/google?next=/r/keynote/admin');
 

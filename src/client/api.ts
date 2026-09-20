@@ -1,6 +1,7 @@
 import type {
 	Me,
 	Operator,
+	Provider,
 	Question,
 	RoomInfo,
 	RoomSettings,
@@ -137,6 +138,10 @@ export function setOpen(roomId: string, open: boolean): Promise<RoomSettings> {
 		headers: JSON_BODY,
 		body: JSON.stringify({ open }),
 	});
+}
+
+export async function providers(): Promise<Provider[]> {
+	return (await send<{ providers: Provider[] }>('/api/providers', {})).providers;
 }
 
 /** Null is nobody: the browser holds no session the worker accepts. */
