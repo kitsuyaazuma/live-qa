@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { findAccount } from './accounts';
-import type { Account } from './protocol';
+import type { Account, Provider } from './protocol';
 
 const SESSION = 'session';
 const SESSION_DAYS = 30;
@@ -27,6 +27,15 @@ export async function issueSession(c: Ctx, userId: string): Promise<void> {
 		secure: new URL(c.req.url).protocol === 'https:',
 		maxAge: SESSION_DAYS * 86400,
 	});
+}
+
+/** Both halves of a client, and a secret to sign the session with. */
+export function offeredProviders(env: Env): Provider[] {
+	if (!sessionSecret(env)) return [];
+	const offered: Provider[] = [];
+	if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) offered.push('google');
+	if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) offered.push('github');
+	return offered;
 }
 
 export function endSession(c: Ctx): void {

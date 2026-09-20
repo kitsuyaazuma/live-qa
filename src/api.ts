@@ -19,6 +19,7 @@ import {
 	endSession,
 	isAdmin,
 	issueSession,
+	offeredProviders,
 	safePath,
 	sessionSecret,
 } from './auth';
@@ -304,6 +305,10 @@ api.post('/auth/logout', (c) => {
 	endSession(c);
 	return c.body(null, 204);
 });
+
+api.get('/api/providers', (c) =>
+	c.json({ providers: offeredProviders(c.env) }, 200, { 'cache-control': 'public, max-age=300' }),
+);
 
 api.get('/api/me', async (c) => {
 	const account = await currentAccount(c);
