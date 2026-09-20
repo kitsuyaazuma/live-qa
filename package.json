@@ -8,7 +8,7 @@
 		"demo": "demo/record.sh",
 		"build": "vite build",
 		"preview": "vite preview",
-		"deploy": "scripts/require-env.sh CLOUDFLARE_ACCOUNT_ID && vite build && wrangler deploy ${DOMAIN:+--domains $DOMAIN} && wrangler d1 migrations apply DB --remote",
+		"deploy": "scripts/require-env.sh CLOUDFLARE_ACCOUNT_ID && vite build && wrangler deploy ${DOMAIN:+--domains $DOMAIN} && wrangler d1 migrations apply DB --remote -c wrangler.jsonc",
 		"cf-typegen": "wrangler types",
 		"typecheck": "tsc --noEmit && tsc --noEmit -p src/client",
 		"format": "biome format --write . && prettier --write \"**/*.md\"",
