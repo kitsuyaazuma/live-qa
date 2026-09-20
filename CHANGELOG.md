@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.2...v0.0.3) (2026-09-20)
+
+
+### Features
+
+* show the app version in the footer ([#13](https://github.com/kitsuyaazuma/live-qa/issues/13)) ([5d29a52](https://github.com/kitsuyaazuma/live-qa/commit/5d29a52cecfee7747e25c1e4edf778c34488da64))
+
 ## [0.0.2](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.1...v0.0.2) (2026-09-19)
 
 
