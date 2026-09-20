@@ -152,37 +152,6 @@ export class Room extends DurableObject<Env> {
 		ctx.blockConcurrencyWhile(async () => {
 			const sql = ctx.storage.sql;
 			sql.exec(SCHEMA);
-			// Rooms from before a column existed get it on their next wake.
-			const columns = (table: string) =>
-				sql
-					.exec<{ name: string }>(`SELECT name FROM pragma_table_info('${table}')`)
-					.toArray()
-					.map((column) => column.name);
-			for (const column of ['asker', 'owner']) {
-				if (!columns('questions').includes(column)) {
-					sql.exec(`ALTER TABLE questions ADD COLUMN ${column} TEXT`);
-				}
-			}
-			if (!columns('room').includes('open')) {
-				sql.exec('ALTER TABLE room ADD COLUMN open INTEGER NOT NULL DEFAULT 1');
-			}
-			if (!columns('room').includes('notice')) {
-				sql.exec("ALTER TABLE room ADD COLUMN notice TEXT NOT NULL DEFAULT ''");
-			}
-			// SQLite cannot widen a check constraint, so a table from before the newest
-			// status is rebuilt; its indexes go with the old table and the schema puts them back.
-			const definition = sql
-				.exec<{ sql: string }>("SELECT sql FROM sqlite_master WHERE name = 'questions'")
-				.one().sql;
-			if (!definition.includes("'withdrawn'")) {
-				sql.exec('ALTER TABLE questions RENAME TO questions_old');
-				sql.exec(SCHEMA);
-				sql.exec(
-					`INSERT INTO questions (${COLUMNS}, owner) SELECT ${COLUMNS}, owner FROM questions_old`,
-				);
-				sql.exec('DROP TABLE questions_old');
-				sql.exec(SCHEMA);
-			}
 			const row = sql
 				.exec<{ version: number; moderated: number; open: number; notice: string }>(
 					'SELECT version, moderated, open, notice FROM room WHERE id = 1',
