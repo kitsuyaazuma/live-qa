@@ -1,6 +1,0 @@
-CREATE TABLE avatars (
-	user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-	bytes BLOB NOT NULL,
-	type TEXT NOT NULL,
-	updated_at INTEGER NOT NULL
-) STRICT;
