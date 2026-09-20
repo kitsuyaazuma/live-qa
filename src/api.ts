@@ -275,7 +275,7 @@ async function signedIn(c: Ctx, profile: Profile) {
 	return c.redirect(to);
 }
 
-api.get('/auth/google', (c) => {
+api.get('/auth/google', async (c) => {
 	const user = c.get('user-google');
 	if (!user?.id) return c.json({ error: 'Google returned no account' }, 502);
 	return signedIn(c, {
@@ -287,7 +287,7 @@ api.get('/auth/google', (c) => {
 	});
 });
 
-api.get('/auth/github', (c) => {
+api.get('/auth/github', async (c) => {
 	const user = c.get('user-github');
 	if (user?.id === undefined) return c.json({ error: 'GitHub returned no account' }, 502);
 	return signedIn(c, {
