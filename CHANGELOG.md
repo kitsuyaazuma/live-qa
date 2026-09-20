@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.4](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.3...v0.0.4) (2026-09-20)
+
+
+### Features
+
+* offer only the sign-in providers that are set up ([#21](https://github.com/kitsuyaazuma/live-qa/issues/21)) ([56f8dd4](https://github.com/kitsuyaazuma/live-qa/commit/56f8dd4fcc7b29fb8cef587ace242151153f6a95))
+* serve a privacy page ([#19](https://github.com/kitsuyaazuma/live-qa/issues/19)) ([b35ed15](https://github.com/kitsuyaazuma/live-qa/commit/b35ed158d643c360a32de694df22f922867a1793))
+
 ## [0.0.3](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.2...v0.0.3) (2026-09-20)
 
 
