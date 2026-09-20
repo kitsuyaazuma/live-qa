@@ -24,6 +24,7 @@ import {
 } from './auth';
 import { roomLocationFromEnv } from './config';
 import { toCsv } from './export';
+import { privacyPage } from './privacy';
 import {
 	type Account,
 	type Asker,
@@ -513,6 +514,8 @@ api.patch('/api/rooms/:roomId', operator, async (c) => {
 	}
 	return c.json(result);
 });
+
+api.get('/privacy', (c) => c.html(privacyPage(c.env)));
 
 /** Only /auth and /api reach the worker first, so this catches a stray GET on
  * either: an unknown /auth path gets the app, an unknown /api path a 404 rather
