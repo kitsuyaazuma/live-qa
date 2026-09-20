@@ -16,5 +16,11 @@
 		"types": ["vite/client"],
 		"paths": { "@branding/*": ["../../branding/default/*"] }
 	},
-	"include": ["**/*.ts", "**/*.tsx", "../protocol.ts", "../../branding/default/branding.json"]
+	"include": [
+		"**/*.ts",
+		"**/*.tsx",
+		"../protocol.ts",
+		"../../branding/default/branding.json",
+		"../../package.json"
+	]
 }
