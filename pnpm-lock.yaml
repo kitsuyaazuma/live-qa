@@ -168,13 +168,13 @@ importers:
     dependencies:
       '@hono/oauth-providers':
         specifier: ^0.9.0
-        version: 0.9.0(hono@4.13.7)
+        version: 0.9.0(hono@4.13.8)
       '@paulmillr/qr':
         specifier: ^0.3.0
         version: 0.3.0
       hono:
-        specifier: ^4.13.7
-        version: 4.13.7
+        specifier: ^4.13.8
+        version: 4.13.8
       lucide-react:
         specifier: 1.47.0
         version: 1.47.0(react@19.3.0)
@@ -1492,8 +1492,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  hono@4.13.7:
-    resolution: {integrity: sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==}
+  hono@4.13.8:
+    resolution: {integrity: sha512-/Gng7NfoykZl2pjukW5Z6+8Yxm3BPRf86GTbQnt0SbySkvax4fyL4H3HhY1cCpBGmiW9XDRFzRV+CXK2W8QudQ==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@6.0.0:
@@ -2294,9 +2294,9 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@hono/oauth-providers@0.9.0(hono@4.13.7)':
+  '@hono/oauth-providers@0.9.0(hono@4.13.8)':
     dependencies:
-      hono: 4.13.7
+      hono: 4.13.8
 
   '@img/colour@1.1.0': {}
 
@@ -2923,7 +2923,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  hono@4.13.7: {}
+  hono@4.13.8: {}
 
   html-encoding-sniffer@6.0.0:
     dependencies:
