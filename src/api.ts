@@ -24,6 +24,7 @@ import {
 	sessionSecret,
 } from './auth';
 import { roomLocationFromEnv } from './config';
+import { currentDevice, issueDevice } from './device';
 import { toCsv } from './export';
 import { privacyPage } from './privacy';
 import {
@@ -72,12 +73,34 @@ function fail(cause: unknown): never {
 	refuse(400, cause instanceof Error ? cause.message : 'invalid request');
 }
 
-/** Keyed by client address: a hall behind one NAT shares a key, so the limits
- * are set for a script from one machine, not for a person. */
-async function limited(limiter: RateLimit, c: Ctx) {
-	const { success } = await limiter.limit({ key: c.req.header('cf-connecting-ip') ?? 'unknown' });
+async function limited(limiter: RateLimit, key: string) {
+	const { success } = await limiter.limit({ key });
 	if (!success) refuse(429, 'too many from here; wait a moment');
 }
+
+function address(c: Ctx): string {
+	return c.req.header('cf-connecting-ip') ?? 'unknown';
+}
+
+/**
+ * A device's limit comes before the address's: a hall behind one NAT shares the
+ * address, so that limit is only the ceiling that keeps the object up.
+ */
+const device: MiddlewareHandler<App> = async (c, next) => {
+	const id = await currentDevice(c);
+	if (!id) return c.json({ error: 'no device cookie; claim one first' }, 401);
+	c.set('device', id);
+	return next();
+};
+
+api.post('/api/device', async (c) => {
+	if (!sessionSecret(c.env)) return c.json({ error: 'devices are not configured' }, 503);
+	if (!(await currentDevice(c))) {
+		await limited(c.env.DEVICE_ISSUE_LIMIT, address(c));
+		await issueDevice(c);
+	}
+	return c.body(null, 204);
+});
 
 function asString(value: unknown, field: string): string {
 	if (typeof value !== 'string') fail(new Error(`${field} must be a string`));
@@ -135,19 +158,21 @@ async function askerFor(c: Ctx, as: unknown): Promise<Asker | null> {
 	return { name: account.name, avatar: account.avatar };
 }
 
-api.post('/api/rooms/:roomId/questions', async (c) => {
-	await limited(c.env.ASK_LIMIT, c);
+api.post('/api/rooms/:roomId/questions', device, async (c) => {
+	await limited(c.env.ASK_DEVICE_LIMIT, c.get('device'));
+	await limited(c.env.ASK_LIMIT, address(c));
 	const input = await body(c);
 	const id = checked(() => requireId(asString(input.id, 'id'), 'id'));
 	const text = checked(() => requireText(asString(input.text, 'text')));
 	const asker = await askerFor(c, input.as);
-	const owner =
-		'voterId' in input
-			? checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'))
-			: null;
 	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, roomId).postQuestion({ id, text, asker, owner });
+	const result = await room(c.env, roomId).postQuestion({
+		id,
+		text,
+		asker,
+		owner: c.get('device'),
+	});
 	if ('status' in result) {
 		const why = result.status === 'room-closed' ? 'closed to new questions' : 'full';
 		return c.json({ error: `this room is ${why}` }, 409);
@@ -163,28 +188,27 @@ const WITHDRAW_STATUS = {
 	'too-late': 409,
 } as const;
 
-api.post('/api/rooms/:roomId/questions/:questionId/withdraw', async (c) => {
-	await limited(c.env.VOTE_LIMIT, c);
-	const input = await body(c);
+api.post('/api/rooms/:roomId/questions/:questionId/withdraw', device, async (c) => {
+	await limited(c.env.VOTE_DEVICE_LIMIT, c.get('device'));
+	await limited(c.env.VOTE_LIMIT, address(c));
 	const id = checked(() => requireId(c.req.param('questionId'), 'questionId'));
-	const voterId = checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'));
 	const roomId = await known(c.env, c.req.param('roomId'));
 
-	const result = await room(c.env, roomId).withdraw({ id, voterId });
+	const result = await room(c.env, roomId).withdraw({ id, voterId: c.get('device') });
 	return c.json(result, WITHDRAW_STATUS[result.status]);
 });
 
-api.put('/api/rooms/:roomId/questions/:questionId/vote', async (c) => {
-	await limited(c.env.VOTE_LIMIT, c);
+api.put('/api/rooms/:roomId/questions/:questionId/vote', device, async (c) => {
+	await limited(c.env.VOTE_DEVICE_LIMIT, c.get('device'));
+	await limited(c.env.VOTE_LIMIT, address(c));
 	const input = await body(c);
 	const questionId = checked(() => requireId(c.req.param('questionId'), 'questionId'));
-	const voterId = checked(() => requireId(asString(input.voterId, 'voterId'), 'voterId'));
 	const voted = asBoolean(input.voted, 'voted');
 	const roomId = await known(c.env, c.req.param('roomId'));
 
 	const result = await room(c.env, roomId).setVote({
 		questionId,
-		voterId,
+		voterId: c.get('device'),
 		voted,
 	});
 	return c.json(result, result.status === 'unknown-question' ? 404 : 200);

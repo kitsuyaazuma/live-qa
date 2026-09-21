@@ -17,9 +17,12 @@ async function sessionFor(email: string): Promise<Record<string, string>> {
 
 let ADMIN: Record<string, string> = {};
 let VISITOR: Record<string, string> = {};
+let DEVICE: Record<string, string> = {};
 beforeAll(async () => {
 	ADMIN = await sessionFor('admin@example.com');
 	VISITOR = await sessionFor('visitor@example.com');
+	const device = await serializeSigned('device', 'device', 'test-secret');
+	DEVICE = { cookie: device.split(';')[0] ?? '' };
 });
 
 function call(path: string, init?: RequestInit) {
@@ -57,15 +60,10 @@ describe('rooms', () => {
 	it('answers 404 for a room nobody created, from every side', async () => {
 		const info = await call('/api/rooms/ghost');
 		const read = await call('/api/rooms/ghost/questions');
-		const post = await json(
-			'/api/rooms/ghost/questions',
-			'POST',
-			{ 'cf-connecting-ip': 'ghost' },
-			{
-				id: 'q1',
-				text: 'anyone there?',
-			},
-		);
+		const post = await json('/api/rooms/ghost/questions', 'POST', DEVICE, {
+			id: 'q1',
+			text: 'anyone there?',
+		});
 		const stream = await call('/api/rooms/ghost/events', { headers: ADMIN });
 
 		expect([info.status, read.status, post.status, stream.status]).toEqual([404, 404, 404, 404]);

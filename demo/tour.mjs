@@ -267,11 +267,13 @@ const [q1, q2] = [idOf(Q1), idOf(Q2)];
 if (!q1 || !q2) throw new Error('could not find the two questions just asked');
 await tap(B.locator(`li[data-key="${q1}"]`).getByLabel('Upvote this question'));
 await beat(900);
-for (const voter of ['v1', 'v2', 'v3', 'v4']) {
+for (let i = 0; i < 4; i += 1) {
+	const claimed = await fetch(`${BASE.origin}/api/device`, { method: 'POST' });
+	const cookie = claimed.headers.getSetCookie()[0]?.split(';')[0] ?? '';
 	await fetch(`${BASE.origin}/api/rooms/${ROOM}/questions/${q2}/vote`, {
 		method: 'PUT',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ voterId: voter, voted: true }),
+		headers: { 'content-type': 'application/json', cookie },
+		body: JSON.stringify({ voted: true }),
 	});
 }
 mark('scene 4: votes are in');

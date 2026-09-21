@@ -6,7 +6,7 @@ import type { Account, Provider } from './protocol';
 const SESSION = 'session';
 const SESSION_DAYS = 30;
 
-export type App = { Bindings: Env; Variables: { account: Account } };
+export type App = { Bindings: Env; Variables: { account: Account; device: string } };
 
 export type Ctx = Context<App>;
 
