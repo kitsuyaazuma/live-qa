@@ -52,6 +52,21 @@ function requiredModel(value: string): SupportedModel {
 	return value as SupportedModel;
 }
 
+export interface TurnstileSettings {
+	siteKey: string;
+	secret: string;
+}
+
+export function turnstileFromEnv(env: Env): TurnstileSettings | null {
+	const siteKey = env.TURNSTILE_SITE_KEY?.trim();
+	const secret = env.TURNSTILE_SECRET_KEY?.trim();
+	if (!siteKey && !secret) return null;
+	if (!siteKey || !secret) {
+		throw new Error('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are set together or not at all');
+	}
+	return { siteKey, secret };
+}
+
 /** No model means no translation: a speaker can share the audience's language. */
 export function translationSettingsFromEnv(env: Env): TranslationSettings | null {
 	const model = env.TRANSLATION_MODEL?.trim();

@@ -14,6 +14,12 @@ export type Connection = 'opening' | 'live' | 'stale';
 /** A vote the server has confirmed at a version the poll has not reached yet. */
 type Echo = { votes: number; version: number };
 
+export interface Challenge {
+	sitekey: string;
+	pass: (token: string) => void;
+	cancel: () => void;
+}
+
 interface RoomState {
 	questions: Question[];
 	moderated: boolean;
@@ -25,6 +31,7 @@ interface RoomState {
 	/** The registry has no such room, so nothing here will ever load. */
 	missing: boolean;
 	error: string | null;
+	challenge: Challenge | null;
 	ask: (text: string, named: boolean) => Promise<boolean>;
 	toggleVote: (id: string) => Promise<void>;
 	withdraw: (id: string) => Promise<void>;
@@ -45,7 +52,35 @@ export function useRoom(roomId: string): RoomState {
 	const [echoes, setEchoes] = useState<Map<string, Echo>>(new Map());
 	const [error, setError] = useState<string | null>(null);
 	const [missing, setMissing] = useState(false);
+	const [challenge, setChallenge] = useState<Challenge | null>(null);
 	const refresh = useRef(() => {});
+
+	/** A write from a browser the worker has not met is a 401; one cookie later it goes through. */
+	const asDevice = useCallback(async <T>(write: () => Promise<T>): Promise<T> => {
+		try {
+			return await write();
+		} catch (cause) {
+			if (!(cause instanceof api.ApiError) || cause.status !== 401) throw cause;
+			const sitekey = await api.siteKey();
+			const token = sitekey
+				? await new Promise<string>((resolve, reject) => {
+						setChallenge({
+							sitekey,
+							pass: (token) => {
+								setChallenge(null);
+								resolve(token);
+							},
+							cancel: () => {
+								setChallenge(null);
+								reject(new Error('the check was closed'));
+							},
+						});
+					})
+				: undefined;
+			await api.claimDevice(token);
+			return write();
+		}
+	}, []);
 
 	useEffect(() => {
 		let stopped = false;
@@ -107,7 +142,7 @@ export function useRoom(roomId: string): RoomState {
 		async (text: string, named: boolean) => {
 			const id = crypto.randomUUID();
 			try {
-				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous');
+				const result = await asDevice(() => api.ask(roomId, id, text, named ? 'me' : 'anonymous'));
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
 				refresh.current();
@@ -117,7 +152,7 @@ export function useRoom(roomId: string): RoomState {
 				return false;
 			}
 		},
-		[roomId],
+		[roomId, asDevice],
 	);
 
 	const toggleVote = useCallback(
@@ -125,7 +160,7 @@ export function useRoom(roomId: string): RoomState {
 			const wanted = !voted.has(id);
 			setVoted(remember(roomId, 'votes', id, wanted));
 			try {
-				const result = await api.vote(roomId, id, wanted);
+				const result = await asDevice(() => api.vote(roomId, id, wanted));
 				if ('votes' in result) {
 					setEchoes((current) => new Map(current).set(id, result));
 				}
@@ -135,20 +170,20 @@ export function useRoom(roomId: string): RoomState {
 				setError(cause instanceof Error ? cause.message : 'could not register the vote');
 			}
 		},
-		[roomId, voted],
+		[roomId, voted, asDevice],
 	);
 
 	const withdraw = useCallback(
 		async (id: string) => {
 			try {
-				await api.withdraw(roomId, id);
+				await asDevice(() => api.withdraw(roomId, id));
 				setMine((current) => current.filter((question) => question.id !== id));
 				refresh.current();
 			} catch (cause) {
 				setError(cause instanceof Error ? cause.message : 'could not take the question back');
 			}
 		},
-		[roomId],
+		[roomId, asDevice],
 	);
 
 	const questions = useMemo(() => {
@@ -172,6 +207,7 @@ export function useRoom(roomId: string): RoomState {
 		voted,
 		missing,
 		error,
+		challenge,
 		ask,
 		toggleVote,
 		withdraw,

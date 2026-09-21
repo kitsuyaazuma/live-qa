@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
 import { AskForm } from '../components/ask-form';
 import { BackToTop } from '../components/back-to-top';
+import { Challenge } from '../components/challenge';
 import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
@@ -135,6 +136,14 @@ export function Participant({ roomId }: { roomId: string }) {
 						/>
 					))}
 				</ul>
+			)}
+
+			{room.challenge && (
+				<Challenge
+					sitekey={room.challenge.sitekey}
+					onToken={room.challenge.pass}
+					onCancel={room.challenge.cancel}
+				/>
 			)}
 
 			{room.error && (

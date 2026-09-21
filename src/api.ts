@@ -23,7 +23,7 @@ import {
 	safePath,
 	sessionSecret,
 } from './auth';
-import { roomLocationFromEnv } from './config';
+import { roomLocationFromEnv, turnstileFromEnv } from './config';
 import { currentDevice, issueDevice } from './device';
 import { toCsv } from './export';
 import { privacyPage } from './privacy';
@@ -50,6 +50,7 @@ import {
 	removeOperator,
 	SCRATCH_PREFIX,
 } from './rooms';
+import { verifyTurnstile } from './turnstile';
 
 /**
  * One room is one object, saturating near a thousand requests a second, so the
@@ -65,7 +66,7 @@ const NO_STORE = { 'cache-control': 'no-store' };
 export const api = new Hono<App>();
 
 /** Thrown refusals answer in the same shape as returned ones: json with an `error`. */
-function refuse(status: 400 | 401 | 404 | 413 | 415 | 429, message: string): never {
+function refuse(status: 400 | 401 | 403 | 404 | 413 | 415 | 429, message: string): never {
 	throw new HTTPException(status, { res: Response.json({ error: message }, { status }) });
 }
 
@@ -93,12 +94,27 @@ const device: MiddlewareHandler<App> = async (c, next) => {
 	return next();
 };
 
+api.get('/api/device', (c) =>
+	c.json({ sitekey: turnstileFromEnv(c.env)?.siteKey ?? null }, 200, {
+		'cache-control': 'public, max-age=300',
+	}),
+);
+
 api.post('/api/device', async (c) => {
 	if (!sessionSecret(c.env)) return c.json({ error: 'devices are not configured' }, 503);
-	if (!(await currentDevice(c))) {
-		await limited(c.env.DEVICE_ISSUE_LIMIT, address(c));
-		await issueDevice(c);
+	if (await currentDevice(c)) return c.body(null, 204);
+	await limited(c.env.DEVICE_ISSUE_LIMIT, address(c));
+	const turnstile = turnstileFromEnv(c.env);
+	if (turnstile) {
+		const passed = await verifyTurnstile({
+			secret: turnstile.secret,
+			token: asString((await body(c)).token, 'token'),
+			hostname: new URL(c.req.url).hostname,
+			remoteip: c.req.header('cf-connecting-ip'),
+		});
+		if (!passed) refuse(403, 'the check did not pass; try again');
 	}
+	await issueDevice(c);
 	return c.body(null, 204);
 });
 
