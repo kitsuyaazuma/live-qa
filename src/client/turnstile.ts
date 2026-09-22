@@ -4,8 +4,10 @@ export interface Turnstile {
 		options: {
 			sitekey: string;
 			theme?: 'auto' | 'light' | 'dark';
+			appearance?: 'always' | 'execute' | 'interaction-only';
 			callback: (token: string) => void;
 			'error-callback'?: () => void;
+			'before-interactive-callback'?: () => void;
 		},
 	): string;
 	remove(widgetId: string): void;

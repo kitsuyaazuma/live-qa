@@ -1,4 +1,5 @@
 import { CircleCheck, Hourglass, ThumbsUp, Trash2, UserRound } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { Question } from '../../protocol';
 import { ago } from '../time';
 import { shownLine, type TranslationShown } from '../translation';
@@ -13,6 +14,8 @@ export function QuestionCard({
 	shown,
 	onVote,
 	onWithdraw,
+	onPrepare,
+	check,
 }: {
 	question: Question;
 	voted: boolean;
@@ -22,6 +25,9 @@ export function QuestionCard({
 	onVote: () => void;
 	/** Offered only to the asker, and only while the question can still go. */
 	onWithdraw?: () => void;
+	onPrepare?: () => void;
+	/** The device check, drawn in the card while a write on it waits. */
+	check?: ReactNode;
 }) {
 	const line = shownLine(question, shown);
 	const answering = question.status === 'answering';
@@ -45,6 +51,7 @@ export function QuestionCard({
 					<button
 						type="button"
 						onClick={onVote}
+						onPointerDown={onPrepare}
 						aria-pressed={voted}
 						aria-label={voted ? 'Take back your upvote' : 'Upvote this question'}
 						className={`btn-sm gap-1.5 ${
@@ -94,6 +101,7 @@ export function QuestionCard({
 						{ago(question.createdAt, now)}
 					</time>
 				</div>
+				{check}
 			</div>
 		</li>
 	);

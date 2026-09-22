@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadTurnstile } from '../turnstile';
-import { Modal } from './modal';
 
+/** Invisible unless Cloudflare wants the person to do something; only then is there anything to explain. */
 export function Challenge({
 	sitekey,
 	onToken,
@@ -11,12 +11,8 @@ export function Challenge({
 	onToken: (token: string) => void;
 	onCancel: () => void;
 }) {
-	const dialog = useRef<HTMLDialogElement>(null);
 	const box = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		dialog.current?.showModal();
-	}, []);
+	const [interactive, setInteractive] = useState(false);
 
 	useEffect(() => {
 		let widget: string | undefined;
@@ -26,8 +22,10 @@ export function Challenge({
 			widget = turnstile.render(box.current, {
 				sitekey,
 				theme: 'auto',
+				appearance: 'interaction-only',
 				callback: onToken,
 				'error-callback': onCancel,
+				'before-interactive-callback': () => setInteractive(true),
 			});
 		}, onCancel);
 		return () => {
@@ -37,9 +35,9 @@ export function Challenge({
 	}, [sitekey, onToken, onCancel]);
 
 	return (
-		<Modal ref={dialog} title="One quick check" onClose={onCancel}>
-			<p className="opacity-70">Confirm you are a person before your first question or vote.</p>
-			<div ref={box} className="flex min-h-16 justify-center" />
-		</Modal>
+		<div className={interactive ? 'flex flex-col items-center gap-1 py-2' : ''}>
+			{interactive && <p className="text-xs opacity-70">A quick check, once per device.</p>}
+			<div ref={box} />
+		</div>
 	);
 }

@@ -14,8 +14,12 @@ export type Connection = 'opening' | 'live' | 'stale';
 /** A vote the server has confirmed at a version the poll has not reached yet. */
 type Echo = { votes: number; version: number };
 
+/** Where the write that needs the check was made, so the check is drawn there. */
+export type WriteSite = { kind: 'ask' } | { kind: 'question'; id: string };
+
 export interface Challenge {
 	sitekey: string;
+	at: WriteSite;
 	pass: (token: string) => void;
 	cancel: () => void;
 }
@@ -32,10 +36,16 @@ interface RoomState {
 	missing: boolean;
 	error: string | null;
 	challenge: Challenge | null;
+	/** Called on the first sign of a write, so the claim is done before the tap lands. */
+	prepare: (at: WriteSite) => void;
 	ask: (text: string, named: boolean) => Promise<boolean>;
 	toggleVote: (id: string) => Promise<void>;
 	withdraw: (id: string) => Promise<void>;
 	dismissError: () => void;
+}
+
+function refused(cause: unknown): cause is api.ApiError {
+	return cause instanceof api.ApiError && cause.message === NO_DEVICE;
 }
 
 function withEcho(question: Question, echoes: Map<string, Echo>, version: number): Question {
@@ -55,37 +65,62 @@ export function useRoom(roomId: string): RoomState {
 	const [challenge, setChallenge] = useState<Challenge | null>(null);
 	const refresh = useRef(() => {});
 	const claiming = useRef<Promise<void> | null>(null);
+	const ready = useRef(false);
 
-	const claim = useCallback(async (sitekey: unknown) => {
+	const claim = useCallback(async (sitekey: unknown, at: WriteSite) => {
 		const token =
 			typeof sitekey === 'string'
 				? await new Promise<string>((resolve, reject) => {
 						setChallenge({
 							sitekey,
+							at,
 							pass: resolve,
-							cancel: () => reject(new Error('the check was closed')),
+							cancel: () => reject(new Error('the check could not run; try again')),
 						});
 					}).finally(() => setChallenge(null))
 				: undefined;
 		await api.claimDevice(token);
 	}, []);
 
+	/** One claim at a time, shared by every write waiting on it. */
+	const share = useCallback((run: () => Promise<void>) => {
+		claiming.current ??= run()
+			.then(() => {
+				ready.current = true;
+			})
+			.finally(() => {
+				claiming.current = null;
+			});
+		return claiming.current;
+	}, []);
+
+	const prepare = useCallback(
+		(at: WriteSite) => {
+			if (ready.current || claiming.current) return;
+			share(() =>
+				api.claimDevice().catch((cause: unknown) => {
+					if (!refused(cause)) throw cause;
+					return claim(cause.body.sitekey, at);
+				}),
+			).catch(() => {});
+		},
+		[claim, share],
+	);
+
 	/** A write from a browser the worker has not met is turned away naming the check;
-	 * one claim later, shared by every write waiting on it, they go through. */
+	 * one claim later it goes through. */
 	const asDevice = useCallback(
-		async <T>(write: () => Promise<T>): Promise<T> => {
+		async <T>(write: () => Promise<T>, at: WriteSite): Promise<T> => {
+			if (claiming.current) await claiming.current;
 			try {
 				return await write();
 			} catch (cause) {
-				if (!(cause instanceof api.ApiError) || cause.message !== NO_DEVICE) throw cause;
-				claiming.current ??= claim(cause.body.sitekey).finally(() => {
-					claiming.current = null;
-				});
-				await claiming.current;
+				if (!refused(cause)) throw cause;
+				await share(() => claim(cause.body.sitekey, at));
 				return write();
 			}
 		},
-		[claim],
+		[claim, share],
 	);
 
 	useEffect(() => {
@@ -148,7 +183,9 @@ export function useRoom(roomId: string): RoomState {
 		async (text: string, named: boolean) => {
 			const id = crypto.randomUUID();
 			try {
-				const result = await asDevice(() => api.ask(roomId, id, text, named ? 'me' : 'anonymous'));
+				const result = await asDevice(() => api.ask(roomId, id, text, named ? 'me' : 'anonymous'), {
+					kind: 'ask',
+				});
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
 				refresh.current();
@@ -166,7 +203,7 @@ export function useRoom(roomId: string): RoomState {
 			const wanted = !voted.has(id);
 			setVoted(remember(roomId, 'votes', id, wanted));
 			try {
-				const result = await asDevice(() => api.vote(roomId, id, wanted));
+				const result = await asDevice(() => api.vote(roomId, id, wanted), { kind: 'question', id });
 				if ('votes' in result) {
 					setEchoes((current) => new Map(current).set(id, result));
 				}
@@ -182,7 +219,7 @@ export function useRoom(roomId: string): RoomState {
 	const withdraw = useCallback(
 		async (id: string) => {
 			try {
-				await asDevice(() => api.withdraw(roomId, id));
+				await asDevice(() => api.withdraw(roomId, id), { kind: 'question', id });
 				setMine((current) => current.filter((question) => question.id !== id));
 				refresh.current();
 			} catch (cause) {
@@ -214,6 +251,7 @@ export function useRoom(roomId: string): RoomState {
 		missing,
 		error,
 		challenge,
+		prepare,
 		ask,
 		toggleVote,
 		withdraw,

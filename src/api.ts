@@ -89,15 +89,13 @@ function address(c: Ctx): string | undefined {
  * A device's limit comes before the address's: a hall behind one NAT shares the
  * address, so that limit is only the ceiling that keeps the object up.
  */
+function refusal(env: Env): DeviceRefusal {
+	return { error: NO_DEVICE, sitekey: turnstileFromEnv(env)?.siteKey ?? null };
+}
+
 const device: MiddlewareHandler<App> = async (c, next) => {
 	const id = await currentDevice(c);
-	if (!id) {
-		const refusal: DeviceRefusal = {
-			error: NO_DEVICE,
-			sitekey: turnstileFromEnv(c.env)?.siteKey ?? null,
-		};
-		return c.json(refusal, 401);
-	}
+	if (!id) return c.json(refusal(c.env), 401);
 	c.set('device', id);
 	return next();
 };
@@ -109,9 +107,12 @@ api.post('/api/device', async (c) => {
 	await limited(c.env.DEVICE_ISSUE_LIMIT, address(c));
 	const turnstile = turnstileFromEnv(c.env);
 	if (turnstile) {
+		// The same refusal a write gets, so a browser can claim before its first write.
+		const input = await body(c);
+		if (!('token' in input)) return c.json(refusal(c.env), 401);
 		const passed = await verifyTurnstile({
 			secret: turnstile.secret,
-			token: asString((await body(c)).token, 'token'),
+			token: asString(input.token, 'token'),
 			hostname: new URL(c.req.url).hostname,
 			remoteip: address(c),
 		});
