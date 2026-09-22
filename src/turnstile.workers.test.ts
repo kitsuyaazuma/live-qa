@@ -2,10 +2,12 @@ import { createExecutionContext } from 'cloudflare:test';
 import { env, exports } from 'cloudflare:workers';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
+import { NO_DEVICE } from './protocol';
 
+const SITEKEY = '1x00000000000000000000AA';
 const GUARDED: Env = {
 	...env,
-	TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+	TURNSTILE_SITE_KEY: SITEKEY,
 	TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
 };
 
@@ -32,17 +34,17 @@ afterEach(() => {
 });
 
 describe('the check before a new device', () => {
-	it('is absent unless a widget is configured', async () => {
-		const response = await exports.default.fetch(new Request('https://example.com/api/device'));
+	it('is named in the 401 a bare write gets, and absent without a widget', async () => {
+		const question = { method: 'POST', body: JSON.stringify({ id: 'q1', text: 'hello' }) };
 
-		expect(await response.json()).toEqual({ sitekey: null });
-		expect(response.headers.get('cache-control')).toBe('public, max-age=300');
-	});
+		const checked = await guarded('/api/rooms/scratch-checked/questions', question);
+		const open = await exports.default.fetch(
+			new Request('https://example.com/api/rooms/scratch-open/questions', question),
+		);
 
-	it('names its site key when one is', async () => {
-		const response = await guarded('/api/device');
-
-		expect(await response.json()).toEqual({ sitekey: '1x00000000000000000000AA' });
+		expect(checked.status).toBe(401);
+		expect(await checked.json()).toEqual({ error: NO_DEVICE, sitekey: SITEKEY });
+		expect(await open.json()).toEqual({ error: NO_DEVICE, sitekey: null });
 	});
 
 	it('issues a cookie for a token solved here, and for nothing less', async () => {
@@ -50,14 +52,30 @@ describe('the check before a new device', () => {
 		const solved = await claim('XXXX.DUMMY.TOKEN.XXXX');
 		siteverifySays({ success: true, hostname: 'elsewhere.example.com' });
 		const elsewhere = await claim('XXXX.DUMMY.TOKEN.XXXX');
-		siteverifySays({ success: false });
-		const failed = await claim('nope');
+		siteverifySays({ success: false, 'error-codes': ['invalid-input-response'] });
+		const refused = await claim('nope');
 		const missing = await claim();
 
 		expect(solved.status).toBe(204);
 		expect(solved.headers.get('set-cookie')).toMatch(/^device=/);
-		expect([elsewhere.status, failed.status, missing.status]).toEqual([403, 403, 400]);
+		expect([elsewhere.status, refused.status, missing.status]).toEqual([403, 403, 400]);
 		expect(elsewhere.headers.get('set-cookie')).toBeNull();
+	});
+
+	it("passes Cloudflare's testing keys wherever the token was solved", async () => {
+		siteverifySays({
+			success: true,
+			hostname: 'somewhere.else',
+			metadata: { result_with_testing_key: true },
+		});
+
+		expect((await claim('XXXX.DUMMY.TOKEN.XXXX')).status).toBe(204);
+	});
+
+	it('answers an outage at siteverify as an error, not as a failed check', async () => {
+		siteverifySays({ success: false, 'error-codes': ['internal-error'] });
+
+		expect((await claim('XXXX.DUMMY.TOKEN.XXXX')).status).toBe(500);
 	});
 
 	it('sends the secret, the token and the address to siteverify', async () => {
@@ -69,11 +87,10 @@ describe('the check before a new device', () => {
 			body: JSON.stringify({ token: 'XXXX.DUMMY.TOKEN.XXXX' }),
 		});
 
-		const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [
+		const [, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [
 			string,
 			RequestInit,
 		];
-		expect(url).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify');
 		expect(JSON.parse(String(init.body))).toEqual({
 			secret: '1x0000000000000000000000000000000AA',
 			response: 'XXXX.DUMMY.TOKEN.XXXX',

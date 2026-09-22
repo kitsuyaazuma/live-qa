@@ -57,14 +57,18 @@ export interface TurnstileSettings {
 	secret: string;
 }
 
+let warnedAboutTurnstile = false;
+
+/** Half a pair is warned about, not refused: refusing would take every first write down. */
 export function turnstileFromEnv(env: Env): TurnstileSettings | null {
 	const siteKey = env.TURNSTILE_SITE_KEY?.trim();
 	const secret = env.TURNSTILE_SECRET_KEY?.trim();
-	if (!siteKey && !secret) return null;
-	if (!siteKey || !secret) {
-		throw new Error('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are set together or not at all');
+	if (siteKey && secret) return { siteKey, secret };
+	if ((siteKey || secret) && !warnedAboutTurnstile) {
+		warnedAboutTurnstile = true;
+		console.warn('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY go together; the check is off');
 	}
-	return { siteKey, secret };
+	return null;
 }
 
 /** No model means no translation: a speaker can share the audience's language. */

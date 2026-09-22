@@ -38,17 +38,32 @@ describe('verifyTurnstile', () => {
 		const elsewhere = await verifyTurnstile(ASK);
 		answering({ success: false, 'error-codes': ['invalid-input-response'] }, 400);
 		const refused = await verifyTurnstile(ASK);
+		answering({ success: false, 'error-codes': ['timeout-or-duplicate'] });
+		const reused = await verifyTurnstile(ASK);
 
-		expect([elsewhere, refused]).toEqual([false, false]);
+		expect([elsewhere, refused, reused]).toEqual([false, false, false]);
 	});
 
-	it('throws rather than guessing when siteverify is down or the secret is wrong', async () => {
-		answering({}, 502);
+	it("passes Cloudflare's testing keys wherever the token was solved", async () => {
+		answering({
+			success: true,
+			hostname: 'example.com',
+			metadata: { result_with_testing_key: true },
+		});
+
+		expect(await verifyTurnstile(ASK)).toBe(true);
+	});
+
+	it('throws rather than guessing when the answer is not a verdict on the person', async () => {
+		answering('<html>bad gateway</html>', 502);
 		const down = verifyTurnstile(ASK);
 		answering({ success: false, 'error-codes': ['invalid-input-secret'] }, 400);
 		const wrongSecret = verifyTurnstile(ASK);
+		answering({ success: false, 'error-codes': ['internal-error'] });
+		const flaky = verifyTurnstile(ASK);
 
 		await expect(down).rejects.toThrow('siteverify answered 502');
-		await expect(wrongSecret).rejects.toThrow('TURNSTILE_SECRET_KEY');
+		await expect(wrongSecret).rejects.toThrow('invalid-input-secret');
+		await expect(flaky).rejects.toThrow('internal-error');
 	});
 });

@@ -1,3 +1,5 @@
+import { turnstileFromEnv } from './config';
+
 function escapeHtml(text: string): string {
 	return text
 		.replace(/&/g, '&amp;')
@@ -10,7 +12,7 @@ export function privacyPage(env: Env): string {
 	const operator = escapeHtml(env.PRIVACY_OPERATOR?.trim() || 'the organiser');
 	const contact = escapeHtml(env.PRIVACY_CONTACT?.trim() ?? '');
 	const asking = contact ? ` Ask ${contact} for either.` : '';
-	const check = env.TURNSTILE_SITE_KEY?.trim()
+	const check = turnstileFromEnv(env)
 		? `<p><strong>Bot check.</strong> Before your first question or vote, Cloudflare Turnstile checks that a person is behind the browser. What it processes is covered by Cloudflare's privacy policy.</p>
 `
 		: '';

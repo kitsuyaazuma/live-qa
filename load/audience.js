@@ -20,6 +20,9 @@ const RAMP = __ENV.RAMP ?? '30s';
 const HOLD = __ENV.HOLD ?? '2m';
 /** Failures logged per VU; every line would be thousands. */
 const SAMPLES = 3;
+/** Accepted only by a deployment on Cloudflare's testing keys; ignored with the check off. */
+const TESTING_TOKEN = 'XXXX.DUMMY.TOKEN.XXXX';
+const JSON_BODY = { headers: { 'content-type': 'application/json' } };
 
 const notModified = new Rate('read_not_modified');
 /** Goes negative when other writers moved the room on, so it measures churn as
@@ -99,10 +102,15 @@ function questionsUrl(room) {
 }
 
 let claimed = false;
+let voted = false;
 
 function claimDevice() {
 	if (claimed) return;
-	const response = http.post(`${BASE_URL}/api/device`, null);
+	const response = http.post(
+		`${BASE_URL}/api/device`,
+		JSON.stringify({ token: TESTING_TOKEN }),
+		JSON_BODY,
+	);
 	if (response.status !== 204) {
 		throw new Error(`could not claim a device: ${response.status} ${response.body}`);
 	}
@@ -163,12 +171,13 @@ export function castVote(data) {
 	// Toggled so every vote is a write; the same vote twice is a no-op.
 	const response = http.put(
 		`${questionsUrl(data.room)}/seed/vote`,
-		JSON.stringify({ voted: __ITER % 2 === 0 }),
-		{ headers: { 'content-type': 'application/json' } },
+		JSON.stringify({ voted: !voted }),
+		JSON_BODY,
 	);
 
 	check(response, { 'vote counted': (r) => r.status === 200 });
-	if (response.status !== 200) {
+	if (response.status === 200) voted = !voted;
+	else {
 		rejectedWrites.add(1);
 		sample('vote', response);
 	}

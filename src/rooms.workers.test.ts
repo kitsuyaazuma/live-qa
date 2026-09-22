@@ -1,7 +1,7 @@
 import { env, exports } from 'cloudflare:workers';
-import { serializeSigned } from 'hono/utils/cookie';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { signIn } from './accounts';
+import { signedCookie } from './test-cookies';
 
 async function sessionFor(email: string): Promise<Record<string, string>> {
 	const account = await signIn(env.DB, {
@@ -11,8 +11,7 @@ async function sessionFor(email: string): Promise<Record<string, string>> {
 		name: email.split('@')[0] ?? email,
 		avatar: null,
 	});
-	const cookie = await serializeSigned('session', account.id, 'test-secret');
-	return { cookie: cookie.split(';')[0] ?? '' };
+	return { cookie: await signedCookie('session', account.id) };
 }
 
 let ADMIN: Record<string, string> = {};
@@ -21,8 +20,7 @@ let DEVICE: Record<string, string> = {};
 beforeAll(async () => {
 	ADMIN = await sessionFor('admin@example.com');
 	VISITOR = await sessionFor('visitor@example.com');
-	const device = await serializeSigned('device', 'device', 'test-secret');
-	DEVICE = { cookie: device.split(';')[0] ?? '' };
+	DEVICE = { cookie: await signedCookie('device', 'device') };
 });
 
 function call(path: string, init?: RequestInit) {

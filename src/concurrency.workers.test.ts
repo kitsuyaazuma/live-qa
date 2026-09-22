@@ -1,8 +1,8 @@
 import { env, exports } from 'cloudflare:workers';
-import { serializeSigned } from 'hono/utils/cookie';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { signIn } from './accounts';
 import { createRoom } from './rooms';
+import { signedCookie } from './test-cookies';
 
 /**
  * The room is one Durable Object instance, so these check the two things that
@@ -32,8 +32,7 @@ function call(path: string, init?: RequestInit) {
 
 /** The room's name doubles as the address, so the address limits stay apart per test. */
 async function device(roomId: string, id: string): Promise<Record<string, string>> {
-	const cookie = await serializeSigned('device', id, 'test-secret');
-	return { 'cf-connecting-ip': roomId, cookie: cookie.split(';')[0] ?? '' };
+	return { 'cf-connecting-ip': roomId, cookie: await signedCookie('device', id) };
 }
 
 async function post(roomId: string, id: string) {
@@ -96,10 +95,14 @@ describe('a burst of writers', () => {
 		expect(questions[0]?.votes).toBe(BURST);
 	});
 
+	/** Straight to the object: at the edge one device is held to its own limit. */
 	it('counts one vote when every request is the same voter', async () => {
 		await post('samevoter', 'q1');
+		const room = env.ROOM.getByName('samevoter');
 
-		await Promise.all(times(BURST).map(() => vote('samevoter', 'q1', 'alice')));
+		await Promise.all(
+			times(BURST).map(() => room.setVote({ questionId: 'q1', voterId: 'alice', voted: true })),
+		);
 
 		const { questions } = await operatorView('samevoter');
 		expect(questions[0]?.votes).toBe(1);
@@ -115,9 +118,13 @@ describe('a burst of writers', () => {
 	});
 
 	it('stores one question when a retry arrives while the first is in flight', async () => {
-		const responses = await Promise.all(times(BURST).map(() => post('retryburst', 'q1')));
+		const room = env.ROOM.getByName('retryburst');
 
-		const created = responses.filter((r) => r.status === 201);
+		const results = await Promise.all(
+			times(BURST).map(() => room.postQuestion({ id: 'q1', text: TEXT })),
+		);
+
+		const created = results.filter((result) => 'created' in result && result.created);
 		const { version, questions } = await operatorView('retryburst');
 		expect(created).toHaveLength(1);
 		expect(questions).toHaveLength(1);

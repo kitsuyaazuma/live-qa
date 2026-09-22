@@ -15,18 +15,22 @@ export function sessionSecret(env: Env): string | undefined {
 	return env.SESSION_SECRET?.trim() || undefined;
 }
 
+export function cookieOptions(c: Ctx, days: number) {
+	return {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'Lax' as const,
+		// Plain http only happens on a developer's localhost.
+		secure: new URL(c.req.url).protocol === 'https:',
+		maxAge: days * 86400,
+	};
+}
+
 /** Reached only behind a provider route, which has already refused to run without the secret. */
 export async function issueSession(c: Ctx, userId: string): Promise<void> {
 	const secret = sessionSecret(c.env);
 	if (!secret) throw new Error('SESSION_SECRET is not set');
-	await setSignedCookie(c, SESSION, userId, secret, {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'Lax',
-		// Plain http only happens on a developer's localhost.
-		secure: new URL(c.req.url).protocol === 'https:',
-		maxAge: SESSION_DAYS * 86400,
-	});
+	await setSignedCookie(c, SESSION, userId, secret, cookieOptions(c, SESSION_DAYS));
 }
 
 /** Both halves of a client, and a secret to sign the session with. */

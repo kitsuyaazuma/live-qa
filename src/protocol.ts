@@ -178,3 +178,11 @@ export interface Me {
 	account: Account;
 	admin: boolean;
 }
+
+export const NO_DEVICE = 'no device cookie; claim one first';
+
+/** The 401 a write gets without a device cookie, naming the check a claim must pass. */
+export interface DeviceRefusal {
+	error: typeof NO_DEVICE;
+	sitekey: string | null;
+}

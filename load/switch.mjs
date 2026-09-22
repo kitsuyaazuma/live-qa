@@ -26,7 +26,11 @@ const signature = createHmac('sha256', secret).update(userId).digest('base64');
 const auth = { cookie: `session=${encodeURIComponent(`${userId}.${signature}`)}` };
 const json = { 'content-type': 'application/json', ...auth };
 
-const claimed = await fetch(`${base}/api/device`, { method: 'POST' });
+const claimed = await fetch(`${base}/api/device`, {
+	method: 'POST',
+	headers: { 'content-type': 'application/json' },
+	body: JSON.stringify({ token: 'XXXX.DUMMY.TOKEN.XXXX' }),
+});
 if (claimed.status !== 204) throw new Error(`could not claim a device: ${claimed.status}`);
 const device = claimed.headers.getSetCookie()[0]?.split(';')[0] ?? '';
 

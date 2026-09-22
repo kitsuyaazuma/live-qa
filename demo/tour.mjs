@@ -268,7 +268,12 @@ if (!q1 || !q2) throw new Error('could not find the two questions just asked');
 await tap(B.locator(`li[data-key="${q1}"]`).getByLabel('Upvote this question'));
 await beat(900);
 for (let i = 0; i < 4; i += 1) {
-	const claimed = await fetch(`${BASE.origin}/api/device`, { method: 'POST' });
+	const claimed = await fetch(`${BASE.origin}/api/device`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: 'XXXX.DUMMY.TOKEN.XXXX' }),
+	});
+	if (claimed.status !== 204) throw new Error(`could not claim a device: ${claimed.status}`);
 	const cookie = claimed.headers.getSetCookie()[0]?.split(';')[0] ?? '';
 	await fetch(`${BASE.origin}/api/rooms/${ROOM}/questions/${q2}/vote`, {
 		method: 'PUT',

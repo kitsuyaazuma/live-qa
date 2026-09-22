@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { offScreen, type Question, type Snapshot } from '../protocol';
+import { NO_DEVICE, offScreen, type Question, type Snapshot } from '../protocol';
 import * as api from './api';
 import { recall, remember } from './storage';
 
@@ -54,33 +54,39 @@ export function useRoom(roomId: string): RoomState {
 	const [missing, setMissing] = useState(false);
 	const [challenge, setChallenge] = useState<Challenge | null>(null);
 	const refresh = useRef(() => {});
+	const claiming = useRef<Promise<void> | null>(null);
 
-	/** A write from a browser the worker has not met is a 401; one cookie later it goes through. */
-	const asDevice = useCallback(async <T>(write: () => Promise<T>): Promise<T> => {
-		try {
-			return await write();
-		} catch (cause) {
-			if (!(cause instanceof api.ApiError) || cause.status !== 401) throw cause;
-			const sitekey = await api.siteKey();
-			const token = sitekey
+	const claim = useCallback(async (sitekey: unknown) => {
+		const token =
+			typeof sitekey === 'string'
 				? await new Promise<string>((resolve, reject) => {
 						setChallenge({
 							sitekey,
-							pass: (token) => {
-								setChallenge(null);
-								resolve(token);
-							},
-							cancel: () => {
-								setChallenge(null);
-								reject(new Error('the check was closed'));
-							},
+							pass: resolve,
+							cancel: () => reject(new Error('the check was closed')),
 						});
-					})
+					}).finally(() => setChallenge(null))
 				: undefined;
-			await api.claimDevice(token);
-			return write();
-		}
+		await api.claimDevice(token);
 	}, []);
+
+	/** A write from a browser the worker has not met is turned away naming the check;
+	 * one claim later, shared by every write waiting on it, they go through. */
+	const asDevice = useCallback(
+		async <T>(write: () => Promise<T>): Promise<T> => {
+			try {
+				return await write();
+			} catch (cause) {
+				if (!(cause instanceof api.ApiError) || cause.message !== NO_DEVICE) throw cause;
+				claiming.current ??= claim(cause.body.sitekey).finally(() => {
+					claiming.current = null;
+				});
+				await claiming.current;
+				return write();
+			}
+		},
+		[claim],
+	);
 
 	useEffect(() => {
 		let stopped = false;
