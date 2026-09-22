@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.5](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.4...v0.0.5) (2026-09-22)
+
+
+### Features
+
+* ask a new device to pass turnstile ([#23](https://github.com/kitsuyaazuma/live-qa/issues/23)) ([48e59fc](https://github.com/kitsuyaazuma/live-qa/commit/48e59fc8359ec31a7993a4abe86e72e9c1c4c8c5))
+* identify a device by a signed cookie ([#22](https://github.com/kitsuyaazuma/live-qa/issues/22)) ([6701a31](https://github.com/kitsuyaazuma/live-qa/commit/6701a31e5454bddb18886d5b6e5f1a8476bc6c10))
+* keep sight of your own question and let errors pass ([#28](https://github.com/kitsuyaazuma/live-qa/issues/28)) ([a768b21](https://github.com/kitsuyaazuma/live-qa/commit/a768b21717ac7dc145fb44509bd6c7891882e1a0))
+* run the check where the tap happened, and only when needed ([#27](https://github.com/kitsuyaazuma/live-qa/issues/27)) ([216df7a](https://github.com/kitsuyaazuma/live-qa/commit/216df7a188ca4a048afe741261276857768b6948))
+
+
+### Bug Fixes
+
+* harden the device check and its load test ([#26](https://github.com/kitsuyaazuma/live-qa/issues/26)) ([2041854](https://github.com/kitsuyaazuma/live-qa/commit/2041854eb8711dc3b8cbd7d518c3a2bc24b7f122))
+
 ## [0.0.4](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.3...v0.0.4) (2026-09-20)
 
 
