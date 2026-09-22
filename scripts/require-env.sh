@@ -19,6 +19,9 @@ for name in "$@"; do
 		printf '    pnpm exec wrangler d1 execute DB --remote --command "SELECT id, email FROM users"\n' >&2
 		printf '    export USER_ID=...                    # an admin account id from that list\n' >&2
 		;;
+	DOMAIN)
+		printf '    export DOMAIN=qa.example.com      # the host the widget is shown on\n' >&2
+		;;
 	BASE_URL)
 		printf '    pnpm run deploy                   # prints the url\n' >&2
 		printf '    export BASE_URL=https://...       # that url\n' >&2

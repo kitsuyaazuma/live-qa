@@ -14,4 +14,7 @@ interface Env {
 	GOOGLE_CLIENT_SECRET?: string;
 	GITHUB_CLIENT_ID?: string;
 	GITHUB_CLIENT_SECRET?: string;
+	/** From `pnpm run turnstile`; empty leaves the check off. */
+	TURNSTILE_SITE_KEY?: string;
+	TURNSTILE_SECRET_KEY?: string;
 }

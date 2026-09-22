@@ -24,6 +24,8 @@ let asked: Question | null;
 let voteResult: { status: string; version: number; votes: number } | null;
 let exists = true;
 let claimed = false;
+let siteKey: string | null = null;
+let claimedWith: string | undefined;
 
 /** Fake timers and the library's own waitFor deadlock, so time is moved by
  * hand: zero flushes the fetch that is already in flight. */
@@ -55,11 +57,22 @@ beforeEach(() => {
 	voteResult = null;
 	exists = true;
 	claimed = false;
+	siteKey = null;
+	claimedWith = undefined;
 
 	vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
 		const url = String(input);
 		const method = init?.method ?? 'GET';
+		if (method === 'GET' && url.endsWith('/api/device')) {
+			return Promise.resolve(json({ sitekey: siteKey }));
+		}
 		if (method === 'POST' && url.endsWith('/api/device')) {
+			claimedWith = init?.body
+				? (JSON.parse(String(init.body)) as { token: string }).token
+				: undefined;
+			if (siteKey && claimedWith !== 'solved') {
+				return Promise.resolve(json({ error: 'the check did not pass' }, { status: 403 }));
+			}
 			claimed = true;
 			return Promise.resolve(new Response(null, { status: 204 }));
 		}
@@ -138,6 +151,65 @@ describe('useRoom', () => {
 		]);
 		expect(result.current.voted.has('q1')).toBe(true);
 		expect(result.current.error).toBeNull();
+	});
+
+	it('draws the check the deployment asks for, and claims with its token', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ votes: 2 })],
+		};
+		voteResult = { status: 'changed', version: 6, votes: 3 };
+		siteKey = '1x00000000000000000000AA';
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		let voting: Promise<void> | undefined;
+		await act(async () => {
+			voting = result.current.toggleVote('q1');
+			await settle();
+		});
+		const drawn = result.current.challenge;
+		await act(async () => {
+			drawn?.pass('solved');
+			await voting;
+		});
+
+		expect(drawn?.sitekey).toBe(siteKey);
+		expect(claimedWith).toBe('solved');
+		expect(result.current.challenge).toBeNull();
+		expect(result.current.voted.has('q1')).toBe(true);
+	});
+
+	it('takes the vote back when the check is closed instead of passed', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ votes: 2 })],
+		};
+		siteKey = '1x00000000000000000000AA';
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		let voting: Promise<void> | undefined;
+		await act(async () => {
+			voting = result.current.toggleVote('q1');
+			await settle();
+		});
+		await act(async () => {
+			result.current.challenge?.cancel();
+			await voting;
+		});
+
+		expect(result.current.challenge).toBeNull();
+		expect(result.current.voted.has('q1')).toBe(false);
+		expect(result.current.error).toBe('the check was closed');
 	});
 
 	it('shows an own question before the cached read catches up', async () => {
