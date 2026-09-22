@@ -8,6 +8,8 @@ import { recall, remember } from './storage';
 const POLL_MS = 2500;
 const JITTER = 0.4;
 const RETRY_CEILING_MS = 15000;
+/** Long enough to read, short enough that a passing failure does not sit over the list. */
+const ERROR_MS = 5000;
 
 export type Connection = 'opening' | 'live' | 'stale';
 
@@ -38,7 +40,8 @@ interface RoomState {
 	challenge: Challenge | null;
 	/** Called on the first sign of a write, so the claim is done before the tap lands. */
 	prepare: (at: WriteSite) => void;
-	ask: (text: string, named: boolean) => Promise<boolean>;
+	/** The new question's id, or null when it was not sent. */
+	ask: (text: string, named: boolean) => Promise<string | null>;
 	toggleVote: (id: string) => Promise<void>;
 	withdraw: (id: string) => Promise<void>;
 	dismissError: () => void;
@@ -62,6 +65,12 @@ export function useRoom(roomId: string): RoomState {
 	const [echoes, setEchoes] = useState<Map<string, Echo>>(new Map());
 	const [error, setError] = useState<string | null>(null);
 	const [missing, setMissing] = useState(false);
+
+	useEffect(() => {
+		if (!error) return;
+		const timer = setTimeout(() => setError(null), ERROR_MS);
+		return () => clearTimeout(timer);
+	}, [error]);
 	const [challenge, setChallenge] = useState<Challenge | null>(null);
 	const refresh = useRef(() => {});
 	const claiming = useRef<Promise<void> | null>(null);
@@ -188,11 +197,12 @@ export function useRoom(roomId: string): RoomState {
 				});
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
+				setError(null);
 				refresh.current();
-				return true;
+				return id;
 			} catch (cause) {
 				setError(cause instanceof Error ? cause.message : 'could not send the question');
-				return false;
+				return null;
 			}
 		},
 		[roomId, asDevice],
@@ -207,6 +217,7 @@ export function useRoom(roomId: string): RoomState {
 				if ('votes' in result) {
 					setEchoes((current) => new Map(current).set(id, result));
 				}
+				setError(null);
 				refresh.current();
 			} catch (cause) {
 				setVoted(remember(roomId, 'votes', id, !wanted));
@@ -221,6 +232,7 @@ export function useRoom(roomId: string): RoomState {
 			try {
 				await asDevice(() => api.withdraw(roomId, id), { kind: 'question', id });
 				setMine((current) => current.filter((question) => question.id !== id));
+				setError(null);
 				refresh.current();
 			} catch (cause) {
 				setError(cause instanceof Error ? cause.message : 'could not take the question back');
@@ -232,12 +244,15 @@ export function useRoom(roomId: string): RoomState {
 	const questions = useMemo(() => {
 		const version = snapshot?.version ?? 0;
 		const seen = new Set((snapshot?.questions ?? []).map((question) => question.id));
+		// A dismissed question of your own stays, as a stub, so it did not just vanish.
+		const shown = (question: Question) =>
+			!offScreen(question.status) || (question.status === 'dismissed' && asked.has(question.id));
 		const live = (snapshot?.questions ?? [])
-			.filter((question) => !offScreen(question.status))
+			.filter(shown)
 			.map((question) => withEcho(question, echoes, version));
 		// Own questions come from the post's answer until the cached read catches up.
 		return [...live, ...mine.filter((question) => !seen.has(question.id))];
-	}, [snapshot, mine, echoes]);
+	}, [snapshot, mine, echoes, asked]);
 
 	return {
 		questions,

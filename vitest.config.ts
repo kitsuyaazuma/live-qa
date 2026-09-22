@@ -28,6 +28,9 @@ export default defineConfig(async () => {
 				bindings: {
 					SESSION_SECRET: 'test-secret',
 					ADMIN_EMAILS: 'admin@example.com',
+					// A developer's .dev.vars reaches the pool too; the check stays off in tests.
+					TURNSTILE_SITE_KEY: '',
+					TURNSTILE_SECRET_KEY: '',
 					TEST_MIGRATIONS: migrations,
 					...vars,
 				},

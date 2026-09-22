@@ -282,16 +282,50 @@ describe('useRoom', () => {
 		expect(result.current.error).toBe('the check could not run; try again');
 	});
 
-	it('shows an own question before the cached read catches up', async () => {
+	it('shows an own question before the cached read catches up, and hands back its id', async () => {
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		let sent: string | null = null;
+		await act(async () => {
+			sent = await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。', false);
+		});
+
+		expect(sent).toBe(asked?.id);
+		expect(result.current.questions.map((q) => q.id)).toEqual([asked?.id]);
+		expect([...result.current.asked]).toEqual([asked?.id]);
+	});
+
+	it('drops an error on the next write that goes through, or after a while', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ votes: 2 })],
+		};
 		const { result } = renderHook(() => useRoom('keynote'));
 		await settle();
 
 		await act(async () => {
-			await result.current.ask('エージェント基盤はどの層から着手すべきでしょうか。', false);
+			await result.current.toggleVote('q1');
 		});
+		const failed = result.current.error;
+		voteResult = { status: 'changed', version: 6, votes: 3 };
+		await act(async () => {
+			await result.current.toggleVote('q1');
+		});
+		const recovered = result.current.error;
+		voteResult = null;
+		await act(async () => {
+			await result.current.toggleVote('q1');
+		});
+		await settle(6000);
 
-		expect(result.current.questions.map((q) => q.id)).toEqual([asked?.id]);
-		expect([...result.current.asked]).toEqual([asked?.id]);
+		expect(failed).not.toBeNull();
+		expect(recovered).toBeNull();
+		expect(result.current.error).toBeNull();
 	});
 
 	it('stops showing its own copy once the read carries the question', async () => {
@@ -390,6 +424,28 @@ describe('useRoom', () => {
 		await settle();
 
 		expect(result.current.questions.map((q) => q.id)).toEqual(['kept']);
+	});
+
+	it('keeps a dismissed question of your own on the screen, as a stub', async () => {
+		localStorage.setItem('live-qa.asked.keynote', JSON.stringify(['gone']));
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [
+				question({ id: 'kept' }),
+				question({ id: 'gone', status: 'dismissed', text: '' }),
+			],
+		};
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		expect(result.current.questions.map((q) => [q.id, q.status])).toEqual([
+			['kept', 'published'],
+			['gone', 'dismissed'],
+		]);
 	});
 
 	it('says it is stale but keeps the last list when a read fails', async () => {

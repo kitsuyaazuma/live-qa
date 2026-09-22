@@ -24,6 +24,7 @@ describe('useFilter', () => {
 		expect(result.current.passes(question({ id: 'mine' }))).toBe(true);
 		expect(result.current.passes(question({ id: 'theirs' }))).toBe(true);
 		expect(result.current.passes(question({ id: 'theirs', status: 'answered' }))).toBe(false);
+		expect(result.current.passes(question({ id: 'mine', status: 'answered' }))).toBe(true);
 		expect(result.current.narrowed).toBe(false);
 	});
 

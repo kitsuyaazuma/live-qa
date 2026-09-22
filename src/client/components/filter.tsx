@@ -40,14 +40,16 @@ function toggled<T>(chosen: Set<T>, value: T): Set<T> {
 }
 
 /** Checked is shown: or within a facet, and across them. The last box in a
- * facet cannot be cleared, so there is no empty view to explain. */
+ * facet cannot be cleared, so there is no empty view to explain. Your own
+ * questions ignore the progress facet: following them is the point. */
 export function useFilter(asked: Set<string>) {
 	const [progress, setProgress] = useState<Set<Progress>>(() => new Set(['open']));
 	const [asker, setAsker] = useState<Set<Asker>>(() => new Set(['you', 'others']));
 
 	const passes = (question: Question) =>
-		progress.has(question.status === 'answered' ? 'answered' : 'open') &&
-		asker.has(asked.has(question.id) ? 'you' : 'others');
+		asked.has(question.id)
+			? asker.has('you')
+			: asker.has('others') && progress.has(question.status === 'answered' ? 'answered' : 'open');
 	const narrowed = progress.size !== 1 || !progress.has('open') || asker.size !== 2;
 
 	return { passes, narrowed, progress, setProgress, asker, setAsker };

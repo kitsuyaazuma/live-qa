@@ -13,7 +13,7 @@ export function AskForm({
 	check,
 }: {
 	moderated: boolean;
-	onAsk: (text: string, named: boolean) => Promise<boolean>;
+	onAsk: (text: string, named: boolean) => Promise<string | null>;
 	onPrepare?: () => void;
 	/** The device check, drawn under the form while a question waits on it. */
 	check?: ReactNode;
