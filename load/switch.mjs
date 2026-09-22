@@ -26,10 +26,14 @@ const signature = createHmac('sha256', secret).update(userId).digest('base64');
 const auth = { cookie: `session=${encodeURIComponent(`${userId}.${signature}`)}` };
 const json = { 'content-type': 'application/json', ...auth };
 
+const claimed = await fetch(`${base}/api/device`, { method: 'POST' });
+if (claimed.status !== 204) throw new Error(`could not claim a device: ${claimed.status}`);
+const device = claimed.headers.getSetCookie()[0]?.split(';')[0] ?? '';
+
 async function seed(id) {
 	const response = await fetch(`${rooms}/questions`, {
 		method: 'POST',
-		headers: { 'content-type': 'application/json' },
+		headers: { 'content-type': 'application/json', cookie: device },
 		body: JSON.stringify({ id, text: `switch measurement ${id}` }),
 	});
 	if (response.status !== 201 && response.status !== 200) {

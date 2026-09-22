@@ -48,43 +48,53 @@ export interface Asked {
 	question: Question;
 }
 
+export async function claimDevice(): Promise<void> {
+	const response = await fetch('/api/device', { method: 'POST' });
+	if (!response.ok) throw new ApiError(response.status, await reason(response));
+}
+
+/** A write from a browser the worker has not met is a 401; one cookie later it goes through. */
+async function asDevice<T>(write: () => Promise<T>): Promise<T> {
+	try {
+		return await write();
+	} catch (cause) {
+		if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
+		await claimDevice();
+		return write();
+	}
+}
+
 export function ask(
 	roomId: string,
 	id: string,
 	text: string,
 	as: 'me' | 'anonymous',
-	voterId: string,
 ): Promise<Asked> {
-	return send(`${rooms(roomId)}/questions`, {
-		method: 'POST',
-		headers: JSON_BODY,
-		body: JSON.stringify({ id, text, as, voterId }),
-	});
+	return asDevice(() =>
+		send(`${rooms(roomId)}/questions`, {
+			method: 'POST',
+			headers: JSON_BODY,
+			body: JSON.stringify({ id, text, as }),
+		}),
+	);
 }
 
-export function withdraw(
-	roomId: string,
-	questionId: string,
-	voterId: string,
-): Promise<WithdrawResult> {
-	return send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}/withdraw`, {
-		method: 'POST',
-		headers: JSON_BODY,
-		body: JSON.stringify({ voterId }),
-	});
+export function withdraw(roomId: string, questionId: string): Promise<WithdrawResult> {
+	return asDevice(() =>
+		send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}/withdraw`, {
+			method: 'POST',
+		}),
+	);
 }
 
-export function vote(
-	roomId: string,
-	questionId: string,
-	voterId: string,
-	voted: boolean,
-): Promise<VoteResult> {
-	return send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}/vote`, {
-		method: 'PUT',
-		headers: JSON_BODY,
-		body: JSON.stringify({ voterId, voted }),
-	});
+export function vote(roomId: string, questionId: string, voted: boolean): Promise<VoteResult> {
+	return asDevice(() =>
+		send(`${rooms(roomId)}/questions/${encodeURIComponent(questionId)}/vote`, {
+			method: 'PUT',
+			headers: JSON_BODY,
+			body: JSON.stringify({ voted }),
+		}),
+	);
 }
 
 /** A null snapshot is a 304: the room has not moved since that etag. */

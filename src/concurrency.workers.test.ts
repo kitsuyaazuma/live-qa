@@ -1,4 +1,5 @@
 import { env, exports } from 'cloudflare:workers';
+import { serializeSigned } from 'hono/utils/cookie';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { signIn } from './accounts';
 import { createRoom } from './rooms';
@@ -29,20 +30,25 @@ function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
 }
 
-/** The edge limit is keyed on the address, so each room here is its own. */
-function post(roomId: string, id: string) {
+/** The room's name doubles as the address, so the address limits stay apart per test. */
+async function device(roomId: string, id: string): Promise<Record<string, string>> {
+	const cookie = await serializeSigned('device', id, 'test-secret');
+	return { 'cf-connecting-ip': roomId, cookie: cookie.split(';')[0] ?? '' };
+}
+
+async function post(roomId: string, id: string) {
 	return call(`/api/rooms/${roomId}/questions`, {
 		method: 'POST',
-		headers: { 'cf-connecting-ip': roomId },
+		headers: await device(roomId, `${roomId}/${id}`),
 		body: JSON.stringify({ id, text: TEXT }),
 	});
 }
 
-function vote(roomId: string, questionId: string, voterId: string) {
+async function vote(roomId: string, questionId: string, voterId: string) {
 	return call(`/api/rooms/${roomId}/questions/${questionId}/vote`, {
 		method: 'PUT',
-		headers: { 'cf-connecting-ip': roomId },
-		body: JSON.stringify({ voterId, voted: true }),
+		headers: await device(roomId, voterId),
+		body: JSON.stringify({ voted: true }),
 	});
 }
 

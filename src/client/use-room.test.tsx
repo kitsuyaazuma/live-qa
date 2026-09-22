@@ -23,6 +23,7 @@ let served: Snapshot;
 let asked: Question | null;
 let voteResult: { status: string; version: number; votes: number } | null;
 let exists = true;
+let claimed = false;
 
 /** Fake timers and the library's own waitFor deadlock, so time is moved by
  * hand: zero flushes the fetch that is already in flight. */
@@ -53,10 +54,18 @@ beforeEach(() => {
 	asked = null;
 	voteResult = null;
 	exists = true;
+	claimed = false;
 
 	vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
 		const url = String(input);
 		const method = init?.method ?? 'GET';
+		if (method === 'POST' && url.endsWith('/api/device')) {
+			claimed = true;
+			return Promise.resolve(new Response(null, { status: 204 }));
+		}
+		if (method !== 'GET' && !claimed) {
+			return Promise.resolve(json({ error: 'no device cookie; claim one first' }, { status: 401 }));
+		}
 		if (method === 'GET') {
 			if (!exists) return Promise.resolve(json({ error: 'no such room' }, { status: 404 }));
 			const etag = `"${served.version}"`;
@@ -99,6 +108,36 @@ describe('useRoom', () => {
 
 		expect(result.current.missing).toBe(true);
 		expect(spy.mock.calls.length).toBe(calls);
+	});
+
+	it('claims a device cookie when a write is turned away, then sends it again', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ votes: 2 })],
+		};
+		voteResult = { status: 'changed', version: 6, votes: 3 };
+		const spy = vi.spyOn(globalThis, 'fetch');
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		await act(async () => {
+			await result.current.toggleVote('q1');
+		});
+
+		const writes = spy.mock.calls
+			.filter(([, init]) => init?.method && init.method !== 'GET')
+			.map(([input, init]) => `${init?.method} ${String(input)}`);
+		expect(writes).toEqual([
+			'PUT /api/rooms/keynote/questions/q1/vote',
+			'POST /api/device',
+			'PUT /api/rooms/keynote/questions/q1/vote',
+		]);
+		expect(result.current.voted.has('q1')).toBe(true);
+		expect(result.current.error).toBeNull();
 	});
 
 	it('shows an own question before the cached read catches up', async () => {

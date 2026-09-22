@@ -26,7 +26,7 @@ h1 { font-size: 1.5rem; }
 <body>
 <h1>Privacy</h1>
 <p>This Live Q&amp;A is run by ${operator}, on their own Cloudflare account.</p>
-<p><strong>Asking and voting.</strong> Questions are stored with the room. Your browser keeps a random id so you can upvote once and take your own question back; it is not linked to who you are. Unless you sign in, that is all.</p>
+<p><strong>Asking and voting.</strong> Questions are stored with the room. Your browser is given a random id in a cookie so you can upvote once and take your own question back; it is not linked to who you are. Unless you sign in, that is all.</p>
 <p><strong>Signing in.</strong> You may sign in with Google or GitHub to ask under your name; hosts and operators must. We receive and store your name, email address, profile picture and the provider's account id. The name and picture are shown on questions you ask under your name and next to rooms you run; the email address is used to recognise operators and to let you back in. We read nothing else from your account.</p>
 <p><strong>Translation.</strong> Question text is sent to Cloudflare Workers AI to be translated. No personal data goes with it.</p>
 <p><strong>Retention.</strong> Questions go when the room is deleted; account details go when the account is removed.${asking}</p>

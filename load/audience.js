@@ -54,18 +54,29 @@ if (READERS > 0) {
 	};
 }
 
+/** What one device may do per window, from the device limits in wrangler.jsonc. */
+const PER_DEVICE = { askQuestion: 5, castVote: 30 };
+const WINDOW_SECONDS = 10;
+/** k6 hands an iteration to whichever user is free, so shares are even only on average. */
+const SPARE = 0.4;
+
+function devicesFor(exec, rate) {
+	return Math.ceil((rate * WINDOW_SECONDS) / (PER_DEVICE[exec] * (1 - SPARE)));
+}
+
 /** Arrival-rate executors reject a rate of zero, so an unwanted one is omitted. */
 function arrivals(exec, rate) {
+	const devices = Math.max(10, devicesFor(exec, rate));
 	return {
 		executor: 'constant-arrival-rate',
 		exec,
 		rate,
 		timeUnit: '1s',
 		duration: HOLD,
-		preAllocatedVUs: Math.max(10, Math.ceil(rate / 4)),
+		preAllocatedVUs: devices,
 		// A generous ceiling spirals: failed dials are slow, slow iterations make
 		// the executor add users, and those connections fail in turn.
-		maxVUs: Math.max(20, rate * 2),
+		maxVUs: devices * 2,
 		startTime: READERS > 0 ? RAMP : '0s',
 	};
 }
@@ -75,6 +86,8 @@ if (QUESTIONS_PER_SECOND > 0) scenarios.writers = arrivals('askQuestion', QUESTI
 
 export const options = {
 	scenarios,
+	// k6 empties the cookie jar between iterations otherwise, and the device cookie with it.
+	noCookiesReset: true,
 	// The latencies are what the run is for; a guessed pass mark would hide them.
 	thresholds: {
 		http_req_failed: ['rate<0.01'],
@@ -85,6 +98,17 @@ function questionsUrl(room) {
 	return `${BASE_URL}/api/rooms/${room}/questions`;
 }
 
+let claimed = false;
+
+function claimDevice() {
+	if (claimed) return;
+	const response = http.post(`${BASE_URL}/api/device`, null);
+	if (response.status !== 204) {
+		throw new Error(`could not claim a device: ${response.status} ${response.body}`);
+	}
+	claimed = true;
+}
+
 export function setup() {
 	if (!BASE_URL) throw new Error('set BASE_URL to the deployed worker');
 
@@ -93,6 +117,7 @@ export function setup() {
 	}
 
 	const room = ROOM;
+	claimDevice();
 	const seed = http.post(
 		questionsUrl(room),
 		JSON.stringify({ id: 'seed', text: '最初の質問です。どの層から着手すべきでしょうか。' }),
@@ -134,9 +159,11 @@ export function poll(data) {
 }
 
 export function castVote(data) {
+	claimDevice();
+	// Toggled so every vote is a write; the same vote twice is a no-op.
 	const response = http.put(
 		`${questionsUrl(data.room)}/seed/vote`,
-		JSON.stringify({ voterId: `voter-${__VU}-${__ITER}`, voted: true }),
+		JSON.stringify({ voted: __ITER % 2 === 0 }),
 		{ headers: { 'content-type': 'application/json' } },
 	);
 
@@ -149,6 +176,7 @@ export function castVote(data) {
 
 /** Posts, then reads straight back: the gap is what an asker actually waits. */
 export function askQuestion(data) {
+	claimDevice();
 	const id = `q-${__VU}-${__ITER}`;
 	const posted = http.post(
 		questionsUrl(data.room),

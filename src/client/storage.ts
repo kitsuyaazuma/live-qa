@@ -1,4 +1,4 @@
-/** What this browser remembers. The server only ever sees the opaque voter id. */
+/** What this browser remembers about its own asking and voting. */
 
 type Remembered = 'votes' | 'asked';
 
@@ -16,14 +16,6 @@ function write(key: string, value: string): void {
 	} catch {
 		// A private window refuses; nothing then outlives the tab.
 	}
-}
-
-export function voterId(): string {
-	const existing = read('live-qa.voter');
-	if (existing) return existing;
-	const created = crypto.randomUUID();
-	write('live-qa.voter', created);
-	return created;
 }
 
 function key(roomId: string, kind: Remembered): string {

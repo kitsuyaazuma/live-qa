@@ -6,8 +6,10 @@ import { signIn } from './accounts';
 import { createRoom } from './rooms';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
-/** Mirrors ASK_LIMIT in wrangler.jsonc. */
+/** Mirror the ask limits in wrangler.jsonc. */
 const ASK_PERIOD_MS = 10_000;
+const ASK_PER_DEVICE = 5;
+const ASK_PER_ADDRESS = 200;
 function account(email: string) {
 	return signIn(env.DB, {
 		provider: 'google',
@@ -22,6 +24,19 @@ function account(email: string) {
 async function sessionFor(email: string): Promise<Record<string, string>> {
 	const cookie = await serializeSigned('session', (await account(email)).id, 'test-secret');
 	return { cookie: cookie.split(';')[0] ?? '' };
+}
+
+/** The room's name doubles as the address, so the address limits stay apart per test. */
+async function device(
+	roomId: string,
+	id = roomId,
+	session?: Record<string, string>,
+): Promise<Record<string, string>> {
+	const cookie = (await serializeSigned('device', id, 'test-secret')).split(';')[0] ?? '';
+	return {
+		'cf-connecting-ip': roomId,
+		cookie: [cookie, session?.cookie].filter(Boolean).join('; '),
+	};
 }
 
 /** Every registered room these tests reach for; the rest are scratch rooms. */
@@ -42,6 +57,7 @@ const ROOMS = [
 	'fallback',
 	'fresh',
 	'gate',
+	'hall',
 	'hidden',
 	'packed',
 	'params',
@@ -66,17 +82,26 @@ function call(path: string, init?: RequestInit) {
 	return exports.default.fetch(new Request(`https://example.com${path}`, init));
 }
 
-/** The edge limit is keyed on the address, so each room here is its own. */
-function post(roomId: string, id: string, text = TEXT) {
+/** Each question from a device of its own, so no test trips the device limit by accident. */
+async function post(roomId: string, id: string, text = TEXT) {
 	return call(`/api/rooms/${roomId}/questions`, {
 		method: 'POST',
-		headers: { 'cf-connecting-ip': roomId },
+		headers: await device(roomId, `${roomId}/${id}`),
 		body: JSON.stringify({ id, text }),
 	});
 }
 
 function read(roomId: string, headers?: HeadersInit) {
 	return call(`/api/rooms/${roomId}/questions`, { headers });
+}
+
+/** Waiting for a fresh window can take most of the default five seconds. */
+const LIMIT_TEST = { timeout: 20_000 };
+
+/** Windows are aligned to the wall clock; a run that straddles one gets a fresh count. */
+async function freshWindow(needMs: number) {
+	const left = ASK_PERIOD_MS - (Date.now() % ASK_PERIOD_MS);
+	if (left < needMs) await new Promise((resolve) => setTimeout(resolve, left));
 }
 
 /**
@@ -102,7 +127,11 @@ describe('questions api', () => {
 
 	it('rejects a body the durable object would have thrown on', async () => {
 		const blank = await post('reject', 'q1', '   ');
-		const nonJson = await call('/api/rooms/reject/questions', { method: 'POST', body: 'nope' });
+		const nonJson = await call('/api/rooms/reject/questions', {
+			method: 'POST',
+			headers: await device('reject'),
+			body: 'nope',
+		});
 
 		expect([blank.status, nonJson.status]).toEqual([400, 400]);
 		expect((await read('reject').then((r) => r.json())) as { version: number }).toMatchObject({
@@ -169,7 +198,8 @@ describe('questions api', () => {
 		const badRoom = await post(longId, 'q1');
 		const badQuestion = await call(`/api/rooms/params/questions/${longId}/vote`, {
 			method: 'PUT',
-			body: JSON.stringify({ voterId: 'alice', voted: true }),
+			headers: await device('params'),
+			body: JSON.stringify({ voted: true }),
 		});
 
 		expect([badRoom.status, badQuestion.status]).toEqual([400, 400]);
@@ -178,13 +208,16 @@ describe('questions api', () => {
 	it('reports a vote for an unknown question as not found', async () => {
 		await post('vote', 'q1');
 
+		const alice = await device('vote', 'alice');
 		const ok = await call('/api/rooms/vote/questions/q1/vote', {
 			method: 'PUT',
-			body: JSON.stringify({ voterId: 'alice', voted: true }),
+			headers: alice,
+			body: JSON.stringify({ voted: true }),
 		});
 		const missing = await call('/api/rooms/vote/questions/nope/vote', {
 			method: 'PUT',
-			body: JSON.stringify({ voterId: 'alice', voted: true }),
+			headers: alice,
+			body: JSON.stringify({ voted: true }),
 		});
 
 		expect([ok.status, missing.status]).toEqual([200, 404]);
@@ -196,30 +229,78 @@ describe('what the edge turns away', () => {
 	it('refuses a body larger than any question', async () => {
 		const bloated = await call('/api/rooms/bloat/questions', {
 			method: 'POST',
+			headers: await device('bloat'),
 			body: JSON.stringify({ id: 'q1', text: 'x'.repeat(20_000) }),
 		});
 
 		expect(bloated.status).toBe(413);
 	});
 
-	it('holds one address to a trickle of questions', async () => {
-		// Windows are aligned to the wall clock; a loop that straddles one gets a fresh count.
-		const left = ASK_PERIOD_MS - (Date.now() % ASK_PERIOD_MS);
-		if (left < 2_000) await new Promise((resolve) => setTimeout(resolve, left));
+	it('turns a write away until the browser holds a signed device cookie', async () => {
+		const question = { method: 'POST', body: JSON.stringify({ id: 'q1', text: TEXT }) };
 
-		const from = { 'cf-connecting-ip': '203.0.113.9' };
+		const bare = await call('/api/rooms/reject/questions', question);
+		const forged = await call('/api/rooms/reject/questions', {
+			...question,
+			headers: { cookie: 'device=someone.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
+		});
+
+		expect([bare.status, forged.status]).toEqual([401, 401]);
+	});
+
+	it('hands a browser one device cookie, honours it, and lets it keep it', async () => {
+		const claimed = await call('/api/device', { method: 'POST' });
+		const cookie = claimed.headers.get('set-cookie') ?? '';
+		const headers = { cookie: cookie.split(';')[0] ?? '' };
+
+		const again = await call('/api/device', { method: 'POST', headers });
+		const asked = await call('/api/rooms/create/questions', {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ id: 'claimed', text: TEXT }),
+		});
+
+		expect(claimed.status).toBe(204);
+		expect(cookie).toMatch(/^device=[^;]+;.*HttpOnly.*Secure.*SameSite=Lax/);
+		expect(again.status).toBe(204);
+		expect(again.headers.get('set-cookie')).toBeNull();
+		expect(asked.status).toBe(201);
+	});
+
+	it('holds one device to a handful of questions', LIMIT_TEST, async () => {
+		await freshWindow(2_000);
+
+		const headers = await device('trickle', 'one-device');
 		const statuses: number[] = [];
-		for (let i = 0; i < 51; i += 1) {
+		for (let i = 0; i <= ASK_PER_DEVICE; i += 1) {
 			const response = await call('/api/rooms/trickle/questions', {
 				method: 'POST',
-				headers: from,
+				headers,
 				body: JSON.stringify({ id: `q${i}`, text: TEXT }),
 			});
 			statuses.push(response.status);
 		}
 
-		expect(statuses.slice(0, 50).every((status) => status === 201)).toBe(true);
-		expect(statuses[50]).toBe(429);
+		expect(statuses.slice(0, ASK_PER_DEVICE).every((status) => status === 201)).toBe(true);
+		expect(statuses[ASK_PER_DEVICE]).toBe(429);
+	});
+
+	it('caps one address at what one room can take', LIMIT_TEST, async () => {
+		await freshWindow(4_000);
+
+		const responses = await Promise.all(
+			Array.from({ length: ASK_PER_ADDRESS + 1 }, async (_, i) =>
+				call('/api/rooms/hall/questions', {
+					method: 'POST',
+					headers: await device('hall', `hall/device-${i}`),
+					body: JSON.stringify({ id: `q${i}`, text: TEXT }),
+				}),
+			),
+		);
+
+		const statuses = responses.map((response) => response.status);
+		expect(statuses.filter((status) => status === 201)).toHaveLength(ASK_PER_ADDRESS);
+		expect(statuses.filter((status) => status === 429)).toHaveLength(1);
 	});
 
 	it('says a room is full instead of storing more, and still takes a retry', async () => {
@@ -262,21 +343,20 @@ describe('withdrawing', () => {
 	it('takes a question back for its asker and refuses another phone', async () => {
 		await call('/api/rooms/withdraw/questions', {
 			method: 'POST',
-			headers: { 'cf-connecting-ip': 'withdraw' },
-			body: JSON.stringify({ id: 'q1', text: TEXT, voterId: 'phone-a' }),
+			headers: await device('withdraw', 'phone-a'),
+			body: JSON.stringify({ id: 'q1', text: TEXT }),
 		});
-		const take = (voterId: string) =>
+		const take = async (from: string) =>
 			call('/api/rooms/withdraw/questions/q1/withdraw', {
 				method: 'POST',
-				headers: { 'cf-connecting-ip': 'withdraw' },
-				body: JSON.stringify({ voterId }),
+				headers: await device('withdraw', from),
 			});
 
 		const stranger = await take('phone-b');
 		const asker = await take('phone-a');
 		const missing = await call('/api/rooms/withdraw/questions/nope/withdraw', {
 			method: 'POST',
-			body: JSON.stringify({ voterId: 'phone-a' }),
+			headers: await device('withdraw', 'phone-a'),
 		});
 
 		expect([stranger.status, asker.status, missing.status]).toEqual([403, 200, 404]);
@@ -375,10 +455,10 @@ describe('signing in', () => {
 describe('asking with a name', () => {
 	it('signs the question with what the account is called, only when asked to', async () => {
 		const me = await sessionFor('asker@example.com');
-		const ask = (as: string | undefined, headers: Record<string, string>, id: string) =>
+		const ask = async (as: string | undefined, session: Record<string, string>, id: string) =>
 			call('/api/rooms/named/questions', {
 				method: 'POST',
-				headers: { ...headers, 'cf-connecting-ip': 'named', 'content-type': 'application/json' },
+				headers: { ...(await device('named', id, session)), 'content-type': 'application/json' },
 				body: JSON.stringify({ id, text: TEXT, as }),
 			});
 

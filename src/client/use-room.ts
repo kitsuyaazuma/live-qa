@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { offScreen, type Question, type Snapshot } from '../protocol';
 import * as api from './api';
-import { recall, remember, voterId } from './storage';
+import { recall, remember } from './storage';
 
 /** The read is cached for two seconds, so faster only buys 304s. The jitter
  * keeps a thousand phones from arriving together. */
@@ -107,7 +107,7 @@ export function useRoom(roomId: string): RoomState {
 		async (text: string, named: boolean) => {
 			const id = crypto.randomUUID();
 			try {
-				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous', voterId());
+				const result = await api.ask(roomId, id, text, named ? 'me' : 'anonymous');
 				setMine((current) => [...current, result.question]);
 				setAsked(remember(roomId, 'asked', id, true));
 				refresh.current();
@@ -125,7 +125,7 @@ export function useRoom(roomId: string): RoomState {
 			const wanted = !voted.has(id);
 			setVoted(remember(roomId, 'votes', id, wanted));
 			try {
-				const result = await api.vote(roomId, id, voterId(), wanted);
+				const result = await api.vote(roomId, id, wanted);
 				if ('votes' in result) {
 					setEchoes((current) => new Map(current).set(id, result));
 				}
@@ -141,7 +141,7 @@ export function useRoom(roomId: string): RoomState {
 	const withdraw = useCallback(
 		async (id: string) => {
 			try {
-				await api.withdraw(roomId, id, voterId());
+				await api.withdraw(roomId, id);
 				setMine((current) => current.filter((question) => question.id !== id));
 				refresh.current();
 			} catch (cause) {
