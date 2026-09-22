@@ -16,12 +16,15 @@ export function QuestionCard({
 	onWithdraw,
 	onPrepare,
 	check,
+	fresh = false,
 }: {
 	question: Question;
 	voted: boolean;
 	mine: boolean;
 	now: number;
 	shown: TranslationShown;
+	/** Just sent from this browser: lit up for a moment so the eye finds it. */
+	fresh?: boolean;
 	onVote: () => void;
 	/** Offered only to the asker, and only while the question can still go. */
 	onWithdraw?: () => void;
@@ -33,38 +36,45 @@ export function QuestionCard({
 	const answering = question.status === 'answering';
 	const answered = question.status === 'answered';
 	const waiting = question.status === 'pending';
+	const hidden = question.status === 'dismissed';
 
 	return (
 		<li
 			data-key={question.id}
-			className={`card ${
+			className={`card transition-shadow duration-500 ${
 				answering
 					? 'bg-primary text-primary-content'
 					: `card-border border-base-content/25 ${answered ? 'bg-base-200' : 'bg-base-100'}`
-			}`}
+			} ${fresh ? 'ring-secondary ring-offset-base-100 ring-2 ring-offset-2' : ''}`}
 		>
 			<div className="card-body gap-2 p-4">
 				{question.asker && <Byline asker={question.asker} />}
-				<p className="break-words whitespace-pre-wrap">{question.text}</p>
+				{hidden ? (
+					<p className="text-sm italic opacity-70">Not shown by the operators.</p>
+				) : (
+					<p className="break-words whitespace-pre-wrap">{question.text}</p>
+				)}
 				{line && <p className="text-sm opacity-70">{line}</p>}
 				<div className="flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						onClick={onVote}
-						onPointerDown={onPrepare}
-						aria-pressed={voted}
-						aria-label={voted ? 'Take back your upvote' : 'Upvote this question'}
-						className={`btn-sm gap-1.5 ${
-							answering
-								? `${GHOST} ${voted ? 'bg-current/20' : ''}`
-								: voted
-									? 'btn btn-secondary'
-									: 'btn'
-						}`}
-					>
-						<ThumbsUp className="size-4" fill={voted ? 'currentColor' : 'none'} />
-						<span className="tabular-nums">{question.votes}</span>
-					</button>
+					{!hidden && (
+						<button
+							type="button"
+							onClick={onVote}
+							onPointerDown={onPrepare}
+							aria-pressed={voted}
+							aria-label={voted ? 'Take back your upvote' : 'Upvote this question'}
+							className={`btn-sm gap-1.5 ${
+								answering
+									? `${GHOST} ${voted ? 'bg-current/20' : ''}`
+									: voted
+										? 'btn btn-secondary'
+										: 'btn'
+							}`}
+						>
+							<ThumbsUp className="size-4" fill={voted ? 'currentColor' : 'none'} />
+							<span className="tabular-nums">{question.votes}</span>
+						</button>
+					)}
 					{waiting && (
 						<span className="badge badge-warning badge-soft badge-sm gap-1">
 							<Hourglass className="size-3" />

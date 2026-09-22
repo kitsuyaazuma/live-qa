@@ -1,5 +1,5 @@
 import { Clock, Flame, Lock, Megaphone, MessageSquare, MessageSquareDashed } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
 import { AskForm } from '../components/ask-form';
 import { BackToTop } from '../components/back-to-top';
@@ -14,6 +14,9 @@ import { useFlip } from '../use-flip';
 import { useRoom, type WriteSite } from '../use-room';
 
 type Order = 'popular' | 'recent';
+
+/** How long a question just sent stays lit. */
+const FRESH_MS = 1500;
 
 const RANK: Record<Status, number> = {
 	answering: 0,
@@ -33,6 +36,7 @@ function ordered(questions: Question[], order: Order): Question[] {
 export function Participant({ roomId }: { roomId: string }) {
 	const room = useRoom(roomId);
 	const [order, setOrder] = useState<Order>('popular');
+	const [justAsked, setJustAsked] = useState<string | null>(null);
 	const filter = useFilter(room.asked);
 	const now = useNow();
 	const list = useRef<HTMLUListElement>(null);
@@ -41,6 +45,23 @@ export function Participant({ roomId }: { roomId: string }) {
 		[room.questions, order, filter.passes],
 	);
 	useFlip(list);
+
+	// In the popular order a new question lands at the bottom, out of sight on a long list.
+	useEffect(() => {
+		if (!justAsked) return;
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		list.current
+			?.querySelector(`[data-key="${justAsked}"]`)
+			?.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+		const timer = setTimeout(() => setJustAsked(null), FRESH_MS);
+		return () => clearTimeout(timer);
+	}, [justAsked]);
+
+	const ask = async (text: string, named: boolean) => {
+		const id = await room.ask(text, named);
+		setJustAsked(id);
+		return id;
+	};
 
 	const checkAt = (at: WriteSite) => {
 		const pending = room.challenge;
@@ -78,7 +99,7 @@ export function Participant({ roomId }: { roomId: string }) {
 			{room.open ? (
 				<AskForm
 					moderated={room.moderated}
-					onAsk={room.ask}
+					onAsk={ask}
 					onPrepare={() => room.prepare({ kind: 'ask' })}
 					check={checkAt({ kind: 'ask' })}
 				/>
@@ -139,6 +160,7 @@ export function Participant({ roomId }: { roomId: string }) {
 							question={question}
 							voted={room.voted.has(question.id)}
 							mine={room.asked.has(question.id)}
+							fresh={question.id === justAsked}
 							now={now}
 							shown="headline"
 							onVote={() => void room.toggleVote(question.id)}
