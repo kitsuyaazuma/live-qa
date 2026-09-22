@@ -65,6 +65,9 @@ beforeEach(() => {
 		const method = init?.method ?? 'GET';
 		if (method === 'POST' && url.endsWith('/api/device')) {
 			claimedWith = (JSON.parse(String(init?.body)) as { token?: string }).token;
+			if (siteKey && claimedWith === undefined) {
+				return Promise.resolve(json({ error: NO_DEVICE, sitekey: siteKey }, { status: 401 }));
+			}
 			if (siteKey && claimedWith !== 'solved') {
 				return Promise.resolve(json({ error: 'the check did not pass' }, { status: 403 }));
 			}
@@ -172,6 +175,54 @@ describe('useRoom', () => {
 		expect(result.current.error).toBeNull();
 	});
 
+	it('claims on the first sign of a write, so the write itself goes straight through', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ votes: 2 })],
+		};
+		voteResult = { status: 'changed', version: 6, votes: 3 };
+		const spy = vi.spyOn(globalThis, 'fetch');
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		act(() => result.current.prepare({ kind: 'question', id: 'q1' }));
+		await settle();
+		act(() => result.current.prepare({ kind: 'question', id: 'q1' }));
+		await settle();
+		await act(async () => {
+			await result.current.toggleVote('q1');
+		});
+
+		const writes = spy.mock.calls
+			.filter(([, init]) => init?.method && init.method !== 'GET')
+			.map(([input, init]) => `${init?.method} ${String(input)}`);
+		expect(writes).toEqual(['POST /api/device', 'PUT /api/rooms/keynote/questions/q1/vote']);
+		expect(result.current.voted.has('q1')).toBe(true);
+	});
+
+	it('draws the check where the write was prepared, before anything is sent', async () => {
+		siteKey = '1x00000000000000000000AA';
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		act(() => result.current.prepare({ kind: 'ask' }));
+		await settle();
+		const drawn = result.current.challenge;
+		await act(async () => {
+			drawn?.pass('solved');
+			await settle();
+		});
+
+		expect(drawn?.at).toEqual({ kind: 'ask' });
+		expect(claimedWith).toBe('solved');
+		expect(result.current.challenge).toBeNull();
+		expect(claimed).toBe(true);
+	});
+
 	it('draws the check the deployment asks for, and claims with its token', async () => {
 		served = {
 			version: 5,
@@ -228,7 +279,7 @@ describe('useRoom', () => {
 
 		expect(result.current.challenge).toBeNull();
 		expect(result.current.voted.has('q1')).toBe(false);
-		expect(result.current.error).toBe('the check was closed');
+		expect(result.current.error).toBe('the check could not run; try again');
 	});
 
 	it('shows an own question before the cached read catches up', async () => {

@@ -1,5 +1,5 @@
 import { HatGlasses as Anonymous, Send } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { TEXT_MAX } from '../../protocol';
 import { useMe } from '../use-me';
 
@@ -9,9 +9,14 @@ const COUNTER_FROM = TEXT_MAX * 0.8;
 export function AskForm({
 	moderated,
 	onAsk,
+	onPrepare,
+	check,
 }: {
 	moderated: boolean;
 	onAsk: (text: string, named: boolean) => Promise<boolean>;
+	onPrepare?: () => void;
+	/** The device check, drawn under the form while a question waits on it. */
+	check?: ReactNode;
 }) {
 	const me = useMe();
 	const [text, setText] = useState('');
@@ -40,6 +45,7 @@ export function AskForm({
 					aria-label="Your question"
 					aria-describedby={moderated ? 'ask-hint' : undefined}
 					value={text}
+					onFocus={onPrepare}
 					onChange={(event) => setText(event.target.value)}
 					onKeyDown={(event) => {
 						if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit(event);
@@ -105,6 +111,7 @@ export function AskForm({
 					Questions appear once reviewed.
 				</p>
 			)}
+			{check}
 		</form>
 	);
 }

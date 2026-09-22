@@ -16,10 +16,7 @@ function guarded(path: string, init?: RequestInit) {
 }
 
 function claim(token?: string) {
-	return guarded('/api/device', {
-		method: 'POST',
-		body: token === undefined ? undefined : JSON.stringify({ token }),
-	});
+	return guarded('/api/device', { method: 'POST', body: JSON.stringify({ token }) });
 }
 
 function siteverifySays(body: unknown) {
@@ -58,7 +55,8 @@ describe('the check before a new device', () => {
 
 		expect(solved.status).toBe(204);
 		expect(solved.headers.get('set-cookie')).toMatch(/^device=/);
-		expect([elsewhere.status, refused.status, missing.status]).toEqual([403, 403, 400]);
+		expect([elsewhere.status, refused.status, missing.status]).toEqual([403, 403, 401]);
+		expect(await missing.json()).toEqual({ error: NO_DEVICE, sitekey: SITEKEY });
 		expect(elsewhere.headers.get('set-cookie')).toBeNull();
 	});
 

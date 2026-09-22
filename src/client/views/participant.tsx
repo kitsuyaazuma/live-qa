@@ -11,7 +11,7 @@ import { byNewest, byVotes } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
 import { useFlip } from '../use-flip';
-import { useRoom } from '../use-room';
+import { useRoom, type WriteSite } from '../use-room';
 
 type Order = 'popular' | 'recent';
 
@@ -42,6 +42,15 @@ export function Participant({ roomId }: { roomId: string }) {
 	);
 	useFlip(list);
 
+	const checkAt = (at: WriteSite) => {
+		const pending = room.challenge;
+		if (!pending || pending.at.kind !== at.kind) return undefined;
+		if (at.kind === 'question' && pending.at.kind === 'question' && pending.at.id !== at.id) {
+			return undefined;
+		}
+		return <Challenge sitekey={pending.sitekey} onToken={pending.pass} onCancel={pending.cancel} />;
+	};
+
 	if (room.missing) {
 		return (
 			<Page width="max-w-2xl">
@@ -67,7 +76,12 @@ export function Participant({ roomId }: { roomId: string }) {
 				</div>
 			)}
 			{room.open ? (
-				<AskForm moderated={room.moderated} onAsk={room.ask} />
+				<AskForm
+					moderated={room.moderated}
+					onAsk={room.ask}
+					onPrepare={() => room.prepare({ kind: 'ask' })}
+					check={checkAt({ kind: 'ask' })}
+				/>
 			) : (
 				<p
 					role="status"
@@ -128,6 +142,8 @@ export function Participant({ roomId }: { roomId: string }) {
 							now={now}
 							shown="headline"
 							onVote={() => void room.toggleVote(question.id)}
+							onPrepare={() => room.prepare({ kind: 'question', id: question.id })}
+							check={checkAt({ kind: 'question', id: question.id })}
 							onWithdraw={
 								room.asked.has(question.id) && withdrawable(question, now)
 									? () => void room.withdraw(question.id)
@@ -136,14 +152,6 @@ export function Participant({ roomId }: { roomId: string }) {
 						/>
 					))}
 				</ul>
-			)}
-
-			{room.challenge && (
-				<Challenge
-					sitekey={room.challenge.sitekey}
-					onToken={room.challenge.pass}
-					onCancel={room.challenge.cancel}
-				/>
 			)}
 
 			{room.error && (
