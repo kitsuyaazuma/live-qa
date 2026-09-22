@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { chromium } from 'playwright';
@@ -33,9 +33,19 @@ const NOTICE = '質問は翻訳されるので、日本語でどうぞ。';
 const NEXT = '次のセッションは 14:00 から。';
 
 /** The same shape hono signs: value, a dot, the base64 hmac of the value. */
+function signed(value, secret) {
+	const signature = createHmac('sha256', secret).update(value).digest('base64');
+	return encodeURIComponent(`${value}.${signature}`);
+}
+
 function session(userId) {
-	const signature = createHmac('sha256', SECRET).update(userId).digest('base64');
-	return encodeURIComponent(`${userId}.${signature}`);
+	return signed(userId, SECRET);
+}
+
+/** The device the worker would hand out. A phone pane cannot be handed one on
+ * camera: its cookie is SameSite=Lax, and the pane is a cross-site frame. */
+function device() {
+	return signed(randomUUID(), `${SECRET}#device`);
 }
 
 /** A subdomain per phone keeps their voters apart; the cookie is on the bare host. */
@@ -96,6 +106,7 @@ const context = await browser.newContext({
 	deviceScaleFactor: 1,
 	...(SHOT ? {} : { recordVideo: { dir: OUT, size: { width: 1920, height: 1080 } } }),
 });
+const crossSite = { path: '/', httpOnly: true, sameSite: 'None', secure: true };
 await context.addCookies([
 	{
 		name: 'session',
@@ -105,15 +116,9 @@ await context.addCookies([
 		httpOnly: true,
 		sameSite: 'Lax',
 	},
-	{
-		name: 'session',
-		value: session(GUEST_ID),
-		domain: `b.${BASE.hostname}`,
-		path: '/',
-		httpOnly: true,
-		sameSite: 'None',
-		secure: true,
-	},
+	{ name: 'session', value: session(GUEST_ID), domain: `b.${BASE.hostname}`, ...crossSite },
+	{ name: 'device', value: device(), domain: `a.${BASE.hostname}`, ...crossSite },
+	{ name: 'device', value: device(), domain: `b.${BASE.hostname}`, ...crossSite },
 ]);
 
 // The recording has no cursor of its own, so every frame draws one.
@@ -326,13 +331,16 @@ await beat(1500);
 await tap(S.locator(`li[data-key="${q1}"]`).getByLabel('Mark answered'));
 await beat(2500);
 
+// The asker keeps their answered question either way, so the filter is shown
+// doing what it is now for: putting everyone else's aside.
+await beat(1500);
 await tap(A.getByLabel('Filter'));
 await beat(900);
-await tap(A.getByRole('checkbox', { name: 'Answered', exact: true }));
+await tap(A.getByRole('checkbox', { name: 'Others', exact: true }));
 await beat(1800);
 await closeSettings();
 await beat(2500);
-mark('scene 7: answered');
+mark('scene 7: only yours');
 
 await tap(S.getByLabel('Settings'));
 await beat(800);
