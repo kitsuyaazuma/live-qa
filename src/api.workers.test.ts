@@ -1,9 +1,10 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env, exports } from 'cloudflare:workers';
-import { serializeSigned } from 'hono/utils/cookie';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { signIn } from './accounts';
+import { NO_DEVICE } from './protocol';
 import { createRoom } from './rooms';
+import { signedCookie } from './test-cookies';
 
 const TEXT = 'エージェント基盤はどの層から着手すべきだとお考えでしょうか。';
 /** Mirror the ask limits in wrangler.jsonc. */
@@ -20,10 +21,9 @@ function account(email: string) {
 	});
 }
 
-/** A session for an account that exists, signed the way the worker signs. */
+/** A session for an account that exists. */
 async function sessionFor(email: string): Promise<Record<string, string>> {
-	const cookie = await serializeSigned('session', (await account(email)).id, 'test-secret');
-	return { cookie: cookie.split(';')[0] ?? '' };
+	return { cookie: await signedCookie('session', (await account(email)).id) };
 }
 
 /** The room's name doubles as the address, so the address limits stay apart per test. */
@@ -32,7 +32,7 @@ async function device(
 	id = roomId,
 	session?: Record<string, string>,
 ): Promise<Record<string, string>> {
-	const cookie = (await serializeSigned('device', id, 'test-secret')).split(';')[0] ?? '';
+	const cookie = await signedCookie('device', id);
 	return {
 		'cf-connecting-ip': roomId,
 		cookie: [cookie, session?.cookie].filter(Boolean).join('; '),
@@ -246,6 +246,7 @@ describe('what the edge turns away', () => {
 		});
 
 		expect([bare.status, forged.status]).toEqual([401, 401]);
+		expect(await bare.json()).toEqual({ error: NO_DEVICE, sitekey: null });
 	});
 
 	it('hands a browser one device cookie, honours it, and lets it keep it', async () => {

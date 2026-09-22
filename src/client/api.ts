@@ -17,19 +17,21 @@ export class ApiError extends Error {
 	constructor(
 		readonly status: number,
 		message: string,
+		readonly body: Record<string, unknown> = {},
 	) {
 		super(message);
 	}
 }
 
 /** The worker answers with `{ error }`; anything else came from in front of it. */
-async function reason(response: Response): Promise<string> {
-	const body = await response.text();
+async function refused(response: Response): Promise<ApiError> {
+	const text = await response.text();
 	try {
-		const parsed = JSON.parse(body) as { error?: unknown };
-		if (typeof parsed.error === 'string') return parsed.error;
+		const parsed = JSON.parse(text) as Record<string, unknown>;
+		if (typeof parsed.error === 'string')
+			return new ApiError(response.status, parsed.error, parsed);
 	} catch {}
-	return body.slice(0, 200) || response.statusText;
+	return new ApiError(response.status, text.slice(0, 200) || response.statusText);
 }
 
 function rooms(roomId: string): string {
@@ -38,8 +40,8 @@ function rooms(roomId: string): string {
 
 async function send<T>(path: string, init: RequestInit): Promise<T> {
 	const response = await fetch(path, init);
-	if (!response.ok) throw new ApiError(response.status, await reason(response));
-	return (await response.json()) as T;
+	if (!response.ok) throw await refused(response);
+	return (response.status === 204 ? undefined : await response.json()) as T;
 }
 
 export interface Asked {
@@ -48,17 +50,12 @@ export interface Asked {
 	question: Question;
 }
 
-export async function siteKey(): Promise<string | null> {
-	return (await send<{ sitekey: string | null }>('/api/device', {})).sitekey;
-}
-
-export async function claimDevice(token?: string): Promise<void> {
-	const response = await fetch('/api/device', {
+export function claimDevice(token?: string): Promise<void> {
+	return send('/api/device', {
 		method: 'POST',
-		headers: token ? JSON_BODY : undefined,
-		body: token ? JSON.stringify({ token }) : undefined,
+		headers: JSON_BODY,
+		body: JSON.stringify({ token }),
 	});
-	if (!response.ok) throw new ApiError(response.status, await reason(response));
 }
 
 export function ask(
@@ -97,7 +94,7 @@ export async function read(
 		headers: etag ? { 'if-none-match': etag } : undefined,
 	});
 	if (response.status === 304) return { snapshot: null, etag };
-	if (!response.ok) throw new ApiError(response.status, await reason(response));
+	if (!response.ok) throw await refused(response);
 	return { snapshot: (await response.json()) as Snapshot, etag: response.headers.get('etag') };
 }
 
@@ -149,7 +146,7 @@ export async function providers(): Promise<Provider[]> {
 export async function me(): Promise<Me | null> {
 	const response = await fetch('/api/me');
 	if (response.status === 401) return null;
-	if (!response.ok) throw new ApiError(response.status, await reason(response));
+	if (!response.ok) throw await refused(response);
 	return (await response.json()) as Me;
 }
 
@@ -167,7 +164,7 @@ export interface RoomAccess {
 export async function roomInfo(roomId: string): Promise<RoomAccess | null> {
 	const response = await fetch(rooms(roomId));
 	if (response.status === 404) return null;
-	if (!response.ok) throw new ApiError(response.status, await reason(response));
+	if (!response.ok) throw await refused(response);
 	return (await response.json()) as RoomAccess;
 }
 

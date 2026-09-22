@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Question, Snapshot } from '../protocol';
+import { NO_DEVICE, type Question, type Snapshot } from '../protocol';
 import { useRoom } from './use-room';
 
 function question(overrides: Partial<Question> = {}): Question {
@@ -63,13 +63,8 @@ beforeEach(() => {
 	vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
 		const url = String(input);
 		const method = init?.method ?? 'GET';
-		if (method === 'GET' && url.endsWith('/api/device')) {
-			return Promise.resolve(json({ sitekey: siteKey }));
-		}
 		if (method === 'POST' && url.endsWith('/api/device')) {
-			claimedWith = init?.body
-				? (JSON.parse(String(init.body)) as { token: string }).token
-				: undefined;
+			claimedWith = (JSON.parse(String(init?.body)) as { token?: string }).token;
 			if (siteKey && claimedWith !== 'solved') {
 				return Promise.resolve(json({ error: 'the check did not pass' }, { status: 403 }));
 			}
@@ -77,7 +72,7 @@ beforeEach(() => {
 			return Promise.resolve(new Response(null, { status: 204 }));
 		}
 		if (method !== 'GET' && !claimed) {
-			return Promise.resolve(json({ error: 'no device cookie; claim one first' }, { status: 401 }));
+			return Promise.resolve(json({ error: NO_DEVICE, sitekey: siteKey }, { status: 401 }));
 		}
 		if (method === 'GET') {
 			if (!exists) return Promise.resolve(json({ error: 'no such room' }, { status: 404 }));
@@ -150,6 +145,30 @@ describe('useRoom', () => {
 			'PUT /api/rooms/keynote/questions/q1/vote',
 		]);
 		expect(result.current.voted.has('q1')).toBe(true);
+		expect(result.current.error).toBeNull();
+	});
+
+	it('claims once for every write turned away together', async () => {
+		served = {
+			version: 5,
+			moderated: false,
+			open: true,
+			notice: '',
+			translates: true,
+			questions: [question({ id: 'q1', votes: 2 }), question({ id: 'q2', votes: 0 })],
+		};
+		voteResult = { status: 'changed', version: 6, votes: 3 };
+		const spy = vi.spyOn(globalThis, 'fetch');
+		const { result } = renderHook(() => useRoom('keynote'));
+		await settle();
+
+		await act(async () => {
+			await Promise.all([result.current.toggleVote('q1'), result.current.toggleVote('q2')]);
+		});
+
+		const claims = spy.mock.calls.filter(([input]) => String(input).endsWith('/api/device'));
+		expect(claims).toHaveLength(1);
+		expect([...result.current.voted].sort()).toEqual(['q1', 'q2']);
 		expect(result.current.error).toBeNull();
 	});
 

@@ -24,12 +24,14 @@ import {
 	sessionSecret,
 } from './auth';
 import { roomLocationFromEnv, turnstileFromEnv } from './config';
-import { currentDevice, issueDevice } from './device';
+import { currentDevice, deviceSecret, issueDevice } from './device';
 import { toCsv } from './export';
 import { privacyPage } from './privacy';
 import {
 	type Account,
 	type Asker,
+	type DeviceRefusal,
+	NO_DEVICE,
 	type RoomSettings,
 	requireEmail,
 	requireId,
@@ -74,13 +76,13 @@ function fail(cause: unknown): never {
 	refuse(400, cause instanceof Error ? cause.message : 'invalid request');
 }
 
-async function limited(limiter: RateLimit, key: string) {
-	const { success } = await limiter.limit({ key });
+async function limited(limiter: RateLimit, key: string | undefined) {
+	const { success } = await limiter.limit({ key: key ?? 'unknown' });
 	if (!success) refuse(429, 'too many from here; wait a moment');
 }
 
-function address(c: Ctx): string {
-	return c.req.header('cf-connecting-ip') ?? 'unknown';
+function address(c: Ctx): string | undefined {
+	return c.req.header('cf-connecting-ip');
 }
 
 /**
@@ -89,19 +91,20 @@ function address(c: Ctx): string {
  */
 const device: MiddlewareHandler<App> = async (c, next) => {
 	const id = await currentDevice(c);
-	if (!id) return c.json({ error: 'no device cookie; claim one first' }, 401);
+	if (!id) {
+		const refusal: DeviceRefusal = {
+			error: NO_DEVICE,
+			sitekey: turnstileFromEnv(c.env)?.siteKey ?? null,
+		};
+		return c.json(refusal, 401);
+	}
 	c.set('device', id);
 	return next();
 };
 
-api.get('/api/device', (c) =>
-	c.json({ sitekey: turnstileFromEnv(c.env)?.siteKey ?? null }, 200, {
-		'cache-control': 'public, max-age=300',
-	}),
-);
-
 api.post('/api/device', async (c) => {
-	if (!sessionSecret(c.env)) return c.json({ error: 'devices are not configured' }, 503);
+	const secret = deviceSecret(c.env);
+	if (!secret) return c.json({ error: 'devices are not configured' }, 503);
 	if (await currentDevice(c)) return c.body(null, 204);
 	await limited(c.env.DEVICE_ISSUE_LIMIT, address(c));
 	const turnstile = turnstileFromEnv(c.env);
@@ -110,11 +113,11 @@ api.post('/api/device', async (c) => {
 			secret: turnstile.secret,
 			token: asString((await body(c)).token, 'token'),
 			hostname: new URL(c.req.url).hostname,
-			remoteip: c.req.header('cf-connecting-ip'),
+			remoteip: address(c),
 		});
 		if (!passed) refuse(403, 'the check did not pass; try again');
 	}
-	await issueDevice(c);
+	await issueDevice(c, secret);
 	return c.body(null, 204);
 });
 

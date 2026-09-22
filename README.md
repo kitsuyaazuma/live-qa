@@ -46,12 +46,11 @@ pnpm exec wrangler secret put GITHUB_CLIENT_ID
 pnpm exec wrangler secret put GITHUB_CLIENT_SECRET
 ```
 
-Bot check, optional. Cloudflare Turnstile stands before a browser's first question or vote; without the keys there is no check.
+Bot check, optional. Cloudflare Turnstile stands before a browser's first question or vote; without its keys there is no check.
 
 ```bash
-DOMAIN=qa.example.com pnpm run turnstile           # prints the two keys
-pnpm exec wrangler secret put TURNSTILE_SITE_KEY
-pnpm exec wrangler secret put TURNSTILE_SECRET_KEY
+DOMAIN=qa.example.com pnpm run turnstile:on        # creates the widget once, stores its keys
+pnpm run turnstile:off                             # removes the keys; the widget stays
 ```
 
 Translation is set in the `vars` of [wrangler.jsonc](wrangler.jsonc): model, languages, free-form context. An empty `TRANSLATION_MODEL` turns it off.
@@ -92,7 +91,7 @@ pnpm test
 pnpm run demo                     # records the tour into demo/out
 ```
 
-Translation calls the real Workers AI even locally: `wrangler login` first, or leave `TRANSLATION_MODEL` empty. `pnpm run load` runs a k6 audience against `BASE_URL`.
+Translation calls the real Workers AI even locally: `wrangler login` first, or leave `TRANSLATION_MODEL` empty. `pnpm run load` runs a k6 audience against `BASE_URL`; it needs the bot check off, or Cloudflare's testing keys.
 
 ## License
 
