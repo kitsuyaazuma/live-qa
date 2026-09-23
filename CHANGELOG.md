@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.6...v0.0.7) (2026-09-23)
+
+
+### Features
+
+* put the full translation under the headline on stage ([#38](https://github.com/kitsuyaazuma/live-qa/issues/38)) ([4183582](https://github.com/kitsuyaazuma/live-qa/commit/418358272e0eee2bfa0273d68abe378cc04eeda2))
+
 ## [0.0.6](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.5...v0.0.6) (2026-09-23)
 
 
