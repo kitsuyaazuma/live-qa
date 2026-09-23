@@ -3,6 +3,7 @@ import {
 	Eye,
 	EyeOff,
 	Hourglass,
+	Languages,
 	type LucideIcon,
 	Pin,
 	PinOff,
@@ -73,6 +74,8 @@ export function StageCard({
 	big = false,
 	now,
 	busy = false,
+	full = false,
+	onFull,
 	onMove,
 }: {
 	question: Question;
@@ -82,11 +85,14 @@ export function StageCard({
 	big?: boolean;
 	now?: number;
 	busy?: boolean;
+	full?: boolean;
+	onFull?: () => void;
 	onMove: (to: Target) => void;
 }) {
 	const line = shownLine(question, shown);
 	const active = question.status === 'answering';
 	const waiting = question.status === 'pending';
+	const below = full && question.translation?.ok ? question.translation.full : question.text;
 
 	return (
 		<li
@@ -102,6 +108,18 @@ export function StageCard({
 				<div className="flex items-center gap-2">
 					{question.asker && <Byline asker={question.asker} big={big} />}
 					<div className="ms-auto flex shrink-0 items-center gap-0.5">
+						{onFull && (
+							<button
+								type="button"
+								className={`${active ? GHOST : 'btn btn-ghost'} btn-square ${big ? '' : 'btn-sm'}`}
+								aria-label={full ? 'Show what the asker wrote' : 'Show the full translation'}
+								aria-pressed={full}
+								title="Full translation"
+								onClick={onFull}
+							>
+								<Languages className="size-5" />
+							</button>
+						)}
 						{moves(question.status, admin).map((move) => (
 							<button
 								key={move.to}
@@ -130,7 +148,7 @@ export function StageCard({
 						big && !line ? 'text-2xl leading-snug' : big ? 'text-base' : 'text-sm'
 					}`}
 				>
-					{question.text}
+					{below}
 				</p>
 				{admin && (
 					<div className="flex flex-wrap items-center gap-2">
