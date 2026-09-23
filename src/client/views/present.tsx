@@ -49,7 +49,7 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 	const link = `${location.origin}/r/${roomId}`;
 
 	return (
-		<div className="relative min-h-dvh">
+		<div className="min-h-dvh">
 			<input
 				type="radio"
 				name="stage-theme"
@@ -58,7 +58,7 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 				checked
 				readOnly
 			/>
-			<div className="absolute bottom-4 left-4 z-10 flex gap-1">
+			<div className="fixed bottom-4 left-4 z-10 flex gap-1">
 				<Fullscreen />
 				<Settings roomId={roomId} room={room} shown={shown} onShown={setShown} fromStage />
 			</div>
