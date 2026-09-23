@@ -1,6 +1,7 @@
 import branding from '@branding/branding.json';
 import { Lock, Megaphone, MessageSquareDashed, Smartphone, WifiOff } from 'lucide-react';
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
+import type { Question } from '../../protocol';
 import * as api from '../api';
 import { Banner } from '../components/banner';
 import { Fullscreen } from '../components/fullscreen';
@@ -15,6 +16,10 @@ import type { StreamState } from '../use-stream';
 const Qr = lazy(() => import('../components/qr'));
 
 const ON_STAGE = 6;
+
+function headlined(question: Question): boolean {
+	return question.translation?.ok === true && question.translation.headline !== null;
+}
 
 /** May break after a dot or a slash, never inside a word. */
 function Address({ link }: { link: string }) {
@@ -41,12 +46,14 @@ export default function Present({ roomId }: { roomId: string }) {
 function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 	const list = useRef<HTMLOListElement>(null);
 	const [shown, setShown] = useTranslationShown();
+	const [fullFor, setFullFor] = useState<string | null>(null);
 	const listed = room.questions
 		.filter((question) => question.status === 'published' || question.status === 'answering')
 		.sort(forStage)
 		.slice(0, ON_STAGE);
 	useFlip(list);
 	const link = `${location.origin}/r/${roomId}`;
+	const staged = listed.find((question) => question.status === 'answering');
 
 	return (
 		<div className="min-h-dvh">
@@ -105,6 +112,12 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 									translates={room.translates}
 									shown={shown}
 									big
+									full={fullFor === question.id}
+									onFull={
+										question.id === staged?.id && shown === 'headline' && headlined(question)
+											? () => setFullFor((id) => (id === question.id ? null : question.id))
+											: undefined
+									}
 									onMove={(to) => void api.setStatus(roomId, question.id, to).catch(() => {})}
 								/>
 							))}
