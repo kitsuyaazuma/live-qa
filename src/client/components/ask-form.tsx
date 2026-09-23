@@ -37,9 +37,11 @@ export function AskForm({
 
 	return (
 		<form onSubmit={submit}>
-			<div className="relative">
+			<div
+				className={`textarea flex w-full flex-col gap-2 ${length > TEXT_MAX ? 'textarea-error' : ''}`}
+			>
 				<textarea
-					className={`textarea w-full resize-none pb-12 ${length > TEXT_MAX ? 'textarea-error' : ''}`}
+					className="w-full resize-none"
 					rows={3}
 					placeholder="Ask a question"
 					aria-label="Your question"
@@ -51,59 +53,62 @@ export function AskForm({
 						if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit(event);
 					}}
 				/>
-				{me ? (
-					<fieldset aria-label="Ask as" className="join absolute bottom-2 left-2 h-8 items-center">
-						<button
-							type="button"
-							className={`btn btn-xs join-item gap-1.5 font-normal ${named ? 'btn-neutral' : ''}`}
-							aria-pressed={named}
-							title="Ask with your name"
-							onClick={() => setAnonymous(false)}
-						>
-							<div className={`avatar ${me.account.avatar ? '' : 'avatar-placeholder'}`}>
-								<div className="bg-base-200 text-base-content w-4 rounded-full">
-									{me.account.avatar ? (
-										<img src={me.account.avatar} alt="" referrerPolicy="no-referrer" />
-									) : (
-										<span className="text-[9px]">{me.account.name.slice(0, 1)}</span>
-									)}
+				{/* A long name wraps Send onto its own line, not out of the box. */}
+				<div className="flex flex-wrap items-center gap-2">
+					{me ? (
+						<fieldset aria-label="Ask as" className="join h-8 items-center">
+							<button
+								type="button"
+								className={`btn btn-xs join-item gap-1.5 font-normal ${named ? 'btn-neutral' : ''}`}
+								aria-pressed={named}
+								title="Ask with your name"
+								onClick={() => setAnonymous(false)}
+							>
+								<div className={`avatar ${me.account.avatar ? '' : 'avatar-placeholder'}`}>
+									<div className="bg-base-200 text-base-content w-4 rounded-full">
+										{me.account.avatar ? (
+											<img src={me.account.avatar} alt="" referrerPolicy="no-referrer" />
+										) : (
+											<span className="text-[9px]">{me.account.name.slice(0, 1)}</span>
+										)}
+									</div>
 								</div>
-							</div>
-							<span className="max-w-28 truncate">{me.account.name}</span>
-						</button>
-						<button
-							type="button"
-							className={`btn btn-xs join-item gap-1.5 font-normal ${named ? '' : 'btn-neutral'}`}
-							aria-pressed={!named}
-							title="Ask anonymously"
-							onClick={() => setAnonymous(true)}
-						>
+								<span className="max-w-28 truncate">{me.account.name}</span>
+							</button>
+							<button
+								type="button"
+								className={`btn btn-xs join-item gap-1.5 font-normal ${named ? '' : 'btn-neutral'}`}
+								aria-pressed={!named}
+								title="Ask anonymously"
+								onClick={() => setAnonymous(true)}
+							>
+								<Anonymous className="size-4" />
+								Anonymous
+							</button>
+						</fieldset>
+					) : (
+						<div className="flex h-8 items-center gap-1.5 text-xs opacity-70">
 							<Anonymous className="size-4" />
 							Anonymous
-						</button>
-					</fieldset>
-				) : (
-					<div className="absolute bottom-2 left-3 flex h-8 items-center gap-1.5 text-xs opacity-70">
-						<Anonymous className="size-4" />
-						Anonymous
-					</div>
-				)}
-				<div className="absolute right-2 bottom-2 flex items-center gap-2">
-					{length > COUNTER_FROM && (
-						<span
-							className={`text-xs tabular-nums ${length > TEXT_MAX ? 'text-error' : 'opacity-70'}`}
-						>
-							{length}/{TEXT_MAX}
-						</span>
+						</div>
 					)}
-					<button type="submit" className="btn btn-primary btn-sm gap-1.5" disabled={refusable}>
-						{busy ? (
-							<span className="loading loading-spinner loading-xs" />
-						) : (
-							<Send className="size-4" />
+					<div className="ms-auto flex items-center gap-2">
+						{length > COUNTER_FROM && (
+							<span
+								className={`text-xs tabular-nums ${length > TEXT_MAX ? 'text-error' : 'opacity-70'}`}
+							>
+								{length}/{TEXT_MAX}
+							</span>
 						)}
-						Send
-					</button>
+						<button type="submit" className="btn btn-primary btn-sm gap-1.5" disabled={refusable}>
+							{busy ? (
+								<span className="loading loading-spinner loading-xs" />
+							) : (
+								<Send className="size-4" />
+							)}
+							Send
+						</button>
+					</div>
 				</div>
 			</div>
 			{moderated && (
