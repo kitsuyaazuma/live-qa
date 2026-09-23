@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.6](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.5...v0.0.6) (2026-09-23)
+
+
+### Features
+
+* list the admins beside the operators ([#35](https://github.com/kitsuyaazuma/live-qa/issues/35)) ([ea25b86](https://github.com/kitsuyaazuma/live-qa/commit/ea25b86654c9295c30f511ff25a4ecf080efa68f))
+
+
+### Bug Fixes
+
+* give the question the whole width of the card ([#33](https://github.com/kitsuyaazuma/live-qa/issues/33)) ([bcca3e9](https://github.com/kitsuyaazuma/live-qa/commit/bcca3e969a3c46fe334c23cb6b2a45c8a86defae))
+* keep every line of a long question in sight ([#31](https://github.com/kitsuyaazuma/live-qa/issues/31)) ([1714a98](https://github.com/kitsuyaazuma/live-qa/commit/1714a989347e0f25384070e54e105d0c383cc175))
+* keep the stage controls in the corner of the screen ([#34](https://github.com/kitsuyaazuma/live-qa/issues/34)) ([9f91384](https://github.com/kitsuyaazuma/live-qa/commit/9f91384c33d30d9c293a6b9673ac0863a4aed084))
+* pin the stage sidebar while the questions scroll ([#37](https://github.com/kitsuyaazuma/live-qa/issues/37)) ([44f94b9](https://github.com/kitsuyaazuma/live-qa/commit/44f94b9bd30f4e89440add9ee72def0083888dde))
+
 ## [0.0.5](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.4...v0.0.5) (2026-09-22)
 
 
