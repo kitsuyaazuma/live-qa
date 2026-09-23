@@ -14,6 +14,7 @@ import {
 } from './accounts';
 import {
 	type App,
+	adminEmails,
 	type Ctx,
 	currentAccount,
 	endSession,
@@ -31,6 +32,7 @@ import {
 	type Account,
 	type Asker,
 	type DeviceRefusal,
+	isScratch,
 	NO_DEVICE,
 	type RoomSettings,
 	requireEmail,
@@ -39,6 +41,7 @@ import {
 	requireNotice,
 	requireTarget,
 	requireText,
+	SCRATCH_PREFIX,
 } from './protocol';
 import {
 	addOperator,
@@ -46,11 +49,9 @@ import {
 	deleteRoom,
 	findRoom,
 	isOperator,
-	isScratch,
 	listRooms,
 	operatorsOf,
 	removeOperator,
-	SCRATCH_PREFIX,
 } from './rooms';
 import { verifyTurnstile } from './turnstile';
 
@@ -472,6 +473,8 @@ api.delete('/api/rooms/:roomId', admin, async (c) => {
 	await room(c.env, id).reset();
 	return c.json({ deleted: id });
 });
+
+api.get('/api/admins', admin, (c) => c.json({ admins: adminEmails(c.env) }, 200, NO_STORE));
 
 /** Scratch rooms pass `known` but have no row for operators to hang off. */
 async function registered(env: Env, roomId: string | undefined): Promise<string> {

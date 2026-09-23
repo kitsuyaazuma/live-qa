@@ -1,11 +1,4 @@
-import type { Operator, RoomInfo } from './protocol';
-
-/** Load tests use these. They are never in the registry, and anyone may empty them. */
-export const SCRATCH_PREFIX = 'scratch-';
-
-export function isScratch(id: string): boolean {
-	return id.startsWith(SCRATCH_PREFIX);
-}
+import { isScratch, type Operator, type RoomInfo } from './protocol';
 
 type RoomRow = { id: string; created_at: number };
 type OperatorRow = { email: string; added_at: number };

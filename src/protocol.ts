@@ -142,13 +142,25 @@ export function requireName(value: string): string {
 	return name;
 }
 
-/** Only a shape check; the provider is who vouches for the address. */
+/** Only a shape check; the provider is who vouches for the address. A string, so
+ * an input's `pattern` can take it unanchored. */
+export const EMAIL_PATTERN = '[^\\s@]+@[^\\s@]+\\.[^\\s@]+';
+export const EMAIL_MAX = 254;
+const EMAIL = new RegExp(`^${EMAIL_PATTERN}$`);
+
 export function requireEmail(value: string): string {
 	const email = value.trim().toLowerCase();
-	if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+	if (email.length > EMAIL_MAX || !EMAIL.test(email)) {
 		throw new Error('email must look like an address');
 	}
 	return email;
+}
+
+/** Load tests use these. They are never in the registry, and anyone may empty them. */
+export const SCRATCH_PREFIX = 'scratch-';
+
+export function isScratch(id: string): boolean {
+	return id.startsWith(SCRATCH_PREFIX);
 }
 
 /** A room the registry knows. Scratch rooms are not in it, so they carry no date. */

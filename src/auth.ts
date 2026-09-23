@@ -58,11 +58,15 @@ export async function currentAccount(c: Ctx): Promise<Account | null> {
 	return id ? findAccount(c.env.DB, id) : null;
 }
 
-export function isAdmin(env: Env, account: Account): boolean {
-	if (!account.email) return false;
-	const admins = (env.ADMIN_EMAILS ?? '')
+/** The addresses ADMIN_EMAILS names, lowercased, blanks dropped. */
+export function adminEmails(env: Env): string[] {
+	return (env.ADMIN_EMAILS ?? '')
 		.split(',')
 		.map((email) => email.trim().toLowerCase())
 		.filter((email) => email.length > 0);
-	return admins.includes(account.email.toLowerCase());
+}
+
+export function isAdmin(env: Env, account: Account): boolean {
+	if (!account.email) return false;
+	return adminEmails(env).includes(account.email.toLowerCase());
 }
