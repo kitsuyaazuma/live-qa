@@ -157,14 +157,14 @@ export function Operators({ roomId }: { roomId: string }) {
 							if (plausible(email)) void change(() => api.setOperator(roomId, email, true));
 						}}
 					>
-						{/* `validator` twice: the input colours itself, the hint reveals off the
-						    wrapper. No `required`, so an empty field is unfinished, not wrong. */}
+						{/* `validator` on the wrapper reveals the hint off a sibling, which a join
+						    item cannot be; the field takes the error colour without the green. */}
 						<div className="join validator w-full">
 							<input
 								type="email"
 								pattern={EMAIL_PATTERN}
 								maxLength={EMAIL_MAX}
-								className="input validator input-sm join-item w-full"
+								className="input input-sm join-item user-invalid:input-error w-full"
 								placeholder="name@example.com"
 								aria-label="Operator email"
 								aria-describedby={HINT}
