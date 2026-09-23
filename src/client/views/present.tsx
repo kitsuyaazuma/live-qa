@@ -64,7 +64,7 @@ function Stage({ roomId, room }: { roomId: string; room: StreamState }) {
 			</div>
 
 			<div className="grid min-h-dvh gap-8 p-6 lg:grid-cols-[minmax(16rem,26%)_1fr] lg:gap-12 lg:p-10">
-				<aside className="flex flex-col items-center gap-6 text-center">
+				<aside className="flex flex-col items-center gap-6 text-center lg:sticky lg:top-10 lg:self-start">
 					<Banner fit="width" className="w-2/3 max-w-52" />
 					<Suspense fallback={<div className="skeleton aspect-square w-full max-w-xs" />}>
 						<Qr text={link} className="rounded-box w-full max-w-xs" />
