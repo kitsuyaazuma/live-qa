@@ -355,16 +355,10 @@ api.get('/api/providers', (c) =>
 	c.json({ providers: offeredProviders(c.env) }, 200, { 'cache-control': 'public, max-age=300' }),
 );
 
-/** What a browser is told about itself. An admin also learns who the others are. */
-function asMe(env: Env, account: Account | null) {
-	if (!account || !isAdmin(env, account)) return { account, admin: false };
-	return { account, admin: true, admins: adminEmails(env) };
-}
-
 api.get('/api/me', async (c) => {
 	const account = await currentAccount(c);
 	if (!account) return c.json({ error: 'not signed in' }, 401);
-	return c.json(asMe(c.env, account), 200, NO_STORE);
+	return c.json({ account, admin: isAdmin(c.env, account) }, 200, NO_STORE);
 });
 
 /** Admins may run every room; anyone else needs their email on it. */
@@ -401,7 +395,8 @@ const operator: MiddlewareHandler<App> = async (c, next) => {
 
 /** The account as it now stands, for the routes that just changed it. */
 async function me(c: Ctx) {
-	return c.json(asMe(c.env, await findAccount(c.env.DB, c.get('account').id)), 200, NO_STORE);
+	const account = await findAccount(c.env.DB, c.get('account').id);
+	return c.json({ account, admin: account ? isAdmin(c.env, account) : false }, 200, NO_STORE);
 }
 
 /** The browser resizes first; this bounds what a hand-made request could store. */
@@ -478,6 +473,8 @@ api.delete('/api/rooms/:roomId', admin, async (c) => {
 	await room(c.env, id).reset();
 	return c.json({ deleted: id });
 });
+
+api.get('/api/admins', admin, (c) => c.json({ admins: adminEmails(c.env) }, 200, NO_STORE));
 
 /** Scratch rooms pass `known` but have no row for operators to hang off. */
 async function registered(env: Env, roomId: string | undefined): Promise<string> {

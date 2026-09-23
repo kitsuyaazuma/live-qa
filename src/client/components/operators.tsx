@@ -1,9 +1,8 @@
 import { ChevronDown, type LucideIcon, ShieldUser, Trash2, Users } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { EMAIL_MAX, EMAIL_PATTERN, isScratch, type Operator, requireEmail } from '../../protocol';
 import * as api from '../api';
 import { navigate } from '../router';
-import { useMe } from '../use-me';
 import { Title } from './title';
 
 function reason(cause: unknown, fallback: string): string {
@@ -23,22 +22,25 @@ const ROWS = 'divide-base-content/10 border-base-content/20 rounded-box divide-y
 
 const HINT = 'operator-email-hint';
 
-/** Shut until asked for: the stage opens these settings on a screen in the hall. */
+/** Shut until asked for: the stage opens these settings on a screen in the hall,
+ * and nothing asks the worker for a roster until someone looks. */
 function Roster({
 	icon,
 	text,
 	said,
 	count,
+	onOpen,
 	children,
 }: {
 	icon: LucideIcon;
 	text: string;
 	said: string;
 	count: number | null;
+	onOpen: () => void;
 	children: ReactNode;
 }) {
 	return (
-		<details className="group">
+		<details className="group" onToggle={(event) => event.currentTarget.open && onOpen()}>
 			<summary className="cursor-pointer list-none text-base [&::-webkit-details-marker]:hidden">
 				<Title icon={icon} text={text} said={said}>
 					{count !== null && <span className="badge badge-ghost badge-sm">{count}</span>}
@@ -51,23 +53,37 @@ function Roster({
 }
 
 export function Admins() {
-	const admins = useMe()?.admins ?? [];
-	if (admins.length === 0) return null;
+	const [list, setList] = useState<string[] | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	function load() {
+		if (list || error) return;
+		void api.admins().then(setList, (cause) => setError(reason(cause, 'could not load')));
+	}
 
 	return (
 		<Roster
 			icon={ShieldUser}
 			text="Admins"
 			said="Set where the app is deployed. They can run every room."
-			count={admins.length}
+			count={list?.length ?? null}
+			onOpen={load}
 		>
-			<ul className={ROWS}>
-				{admins.map((email) => (
-					<li key={email} className="truncate px-3 py-1.5">
-						{email}
-					</li>
-				))}
-			</ul>
+			{list === null && !error && <span className="loading loading-spinner loading-sm" />}
+			{list && (
+				<ul className={ROWS}>
+					{list.map((email) => (
+						<li key={email} className="truncate px-3 py-1.5">
+							{email}
+						</li>
+					))}
+				</ul>
+			)}
+			{error && (
+				<p role="alert" className="text-error text-sm">
+					{error}
+				</p>
+			)}
 		</Roster>
 	);
 }
@@ -81,10 +97,10 @@ export function Operators({ roomId }: { roomId: string }) {
 	const scratch = isScratch(roomId);
 	const wrong = touched && email.length > 0 && !plausible(email);
 
-	useEffect(() => {
-		if (scratch) return;
+	function load() {
+		if (scratch || list || error) return;
 		void api.operators(roomId).then(setList, (cause) => setError(reason(cause, 'could not load')));
-	}, [roomId, scratch]);
+	}
 
 	async function change(action: () => Promise<Operator[]>) {
 		setBusy(true);
@@ -105,6 +121,7 @@ export function Operators({ roomId }: { roomId: string }) {
 			text="Operators"
 			said="Signed in with one of these addresses, they can run this room."
 			count={list?.length ?? null}
+			onOpen={load}
 		>
 			{scratch ? (
 				<p className="text-xs opacity-70">A scratch room has none, and takes none.</p>

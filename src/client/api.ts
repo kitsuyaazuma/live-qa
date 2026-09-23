@@ -185,6 +185,10 @@ export function deleteRoom(roomId: string): Promise<{ deleted: string }> {
 	return send(rooms(roomId), { method: 'DELETE' });
 }
 
+export async function admins(): Promise<string[]> {
+	return (await send<{ admins: string[] }>('/api/admins', {})).admins;
+}
+
 export async function operators(roomId: string): Promise<Operator[]> {
 	return (await send<{ operators: Operator[] }>(`${rooms(roomId)}/operators`, {})).operators;
 }

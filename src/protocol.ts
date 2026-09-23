@@ -189,8 +189,6 @@ export interface Account {
 export interface Me {
 	account: Account;
 	admin: boolean;
-	/** Every address that can run every room. Only an admin is told. */
-	admins?: string[];
 }
 
 export const NO_DEVICE = 'no device cookie; claim one first';

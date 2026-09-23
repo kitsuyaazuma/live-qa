@@ -544,21 +544,24 @@ describe('operator api', () => {
 		expect([anonymous.status, visitor.status, forged.status]).toEqual([401, 403, 401]);
 	});
 
-	it('tells a browser who it is, and an admin who the other admins are', async () => {
+	it('tells a browser who it is, and nothing about the other admins', async () => {
 		const nobody = await call('/api/me');
 		const admin = await call('/api/me', { headers: ADMIN });
-		const visitor = await call('/api/me', { headers: await sessionFor('visitor@example.com') });
 
 		expect(nobody.status).toBe(401);
-		expect(await admin.json()).toMatchObject({
+		expect(await admin.json()).toEqual({
 			admin: true,
-			account: { email: 'admin@example.com' },
-			admins: ['admin@example.com'],
+			account: expect.objectContaining({ email: 'admin@example.com' }),
 		});
-		expect(await visitor.json()).toEqual({
-			admin: false,
-			account: expect.objectContaining({ email: 'visitor@example.com' }),
-		});
+	});
+
+	it('hands the admin roster to an admin alone', async () => {
+		const anonymous = await call('/api/admins');
+		const visitor = await call('/api/admins', { headers: await sessionFor('visitor@example.com') });
+		const admin = await call('/api/admins', { headers: ADMIN });
+
+		expect([anonymous.status, visitor.status]).toEqual([401, 403]);
+		expect(await admin.json()).toEqual({ admins: ['admin@example.com'] });
 	});
 
 	it('shows pending questions only to an operator', async () => {
