@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { offeredProviders, safePath } from './auth';
+import { adminEmails, offeredProviders, safePath } from './auth';
 
 function env(vars: Record<string, string>): Env {
 	return vars as unknown as Env;
@@ -18,6 +18,16 @@ describe('offeredProviders', () => {
 		expect(offeredProviders(env(whole))).toEqual(['google', 'github']);
 		expect(offeredProviders(env({ ...whole, GOOGLE_CLIENT_SECRET: '' }))).toEqual(['github']);
 		expect(offeredProviders(env({ ...whole, SESSION_SECRET: ' ' }))).toEqual([]);
+	});
+});
+
+describe('adminEmails', () => {
+	it('takes the addresses apart, lowercased, and drops the blanks', () => {
+		expect(adminEmails(env({ ADMIN_EMAILS: ' One@Example.com , ,two@example.com,' }))).toEqual([
+			'one@example.com',
+			'two@example.com',
+		]);
+		expect(adminEmails(env({}))).toEqual([]);
 	});
 });
 

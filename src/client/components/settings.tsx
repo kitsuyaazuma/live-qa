@@ -17,7 +17,7 @@ import { TRANSLATION_SHOWN, type TranslationShown } from '../translation';
 import { useMe } from '../use-me';
 import type { StreamState } from '../use-stream';
 import { Modal } from './modal';
-import { DeleteRoom, Operators } from './operators';
+import { Admins, DeleteRoom, Operators } from './operators';
 import { Title } from './title';
 
 function Notice({
@@ -245,7 +245,12 @@ export function Settings({
 						Download as CSV
 					</a>
 				</div>
-				{me?.admin && <Operators roomId={roomId} />}
+				{me?.admin && (
+					<>
+						<Admins />
+						<Operators roomId={roomId} />
+					</>
+				)}
 				{error && (
 					<p role="alert" className="text-error text-sm">
 						{error}

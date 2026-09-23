@@ -544,14 +544,20 @@ describe('operator api', () => {
 		expect([anonymous.status, visitor.status, forged.status]).toEqual([401, 403, 401]);
 	});
 
-	it('tells a browser who it is', async () => {
+	it('tells a browser who it is, and an admin who the other admins are', async () => {
 		const nobody = await call('/api/me');
 		const admin = await call('/api/me', { headers: ADMIN });
+		const visitor = await call('/api/me', { headers: await sessionFor('visitor@example.com') });
 
 		expect(nobody.status).toBe(401);
 		expect(await admin.json()).toMatchObject({
 			admin: true,
 			account: { email: 'admin@example.com' },
+			admins: ['admin@example.com'],
+		});
+		expect(await visitor.json()).toEqual({
+			admin: false,
+			account: expect.objectContaining({ email: 'visitor@example.com' }),
 		});
 	});
 
