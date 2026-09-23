@@ -53,23 +53,28 @@ describe('Operators', () => {
 		expect(screen.getByLabelText('Remove mika@example.com')).toBeTruthy();
 	});
 
-	it('marks an address the worker would refuse, once the field is left', async () => {
+	it('refuses in the field what the worker would refuse', async () => {
 		vi.stubGlobal('fetch', answers({ operators: [] }));
 		const { Operators } = await import('./operators');
 		render(<Operators roomId="keynote" />);
 		open('Operators');
 
-		const field = await screen.findByLabelText('Operator email');
-		fireEvent.change(field, { target: { value: 'nonsense' } });
-		expect(field.getAttribute('aria-invalid')).toBe('false');
+		const field = (await screen.findByLabelText('Operator email')) as HTMLInputElement;
+		const add = screen.getByRole('button', { name: 'Add' });
 
-		fireEvent.blur(field);
-		expect(field.getAttribute('aria-invalid')).toBe('true');
-		expect(screen.getByRole('button', { name: 'Add' }).hasAttribute('disabled')).toBe(true);
+		// An address the browser would take on `type="email"` alone, and the worker will not.
+		fireEvent.change(field, { target: { value: 'someone@example' } });
+		expect(field.checkValidity()).toBe(false);
+		expect(add.hasAttribute('disabled')).toBe(true);
 
 		fireEvent.change(field, { target: { value: 'someone@example.com' } });
-		expect(field.getAttribute('aria-invalid')).toBe('false');
-		expect(screen.getByRole('button', { name: 'Add' }).hasAttribute('disabled')).toBe(false);
+		expect(field.checkValidity()).toBe(true);
+		expect(add.hasAttribute('disabled')).toBe(false);
+
+		// Empty is unfinished, not wrong.
+		fireEvent.change(field, { target: { value: '' } });
+		expect(field.checkValidity()).toBe(true);
+		expect(add.hasAttribute('disabled')).toBe(true);
 	});
 
 	it('stops spinning when the list will not come', async () => {

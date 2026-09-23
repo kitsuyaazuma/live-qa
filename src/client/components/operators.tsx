@@ -91,11 +91,9 @@ export function Admins() {
 export function Operators({ roomId }: { roomId: string }) {
 	const [list, setList] = useState<Operator[] | null>(null);
 	const [email, setEmail] = useState('');
-	const [touched, setTouched] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const scratch = isScratch(roomId);
-	const wrong = touched && email.length > 0 && !plausible(email);
 
 	function load() {
 		if (scratch || list || error) return;
@@ -159,19 +157,19 @@ export function Operators({ roomId }: { roomId: string }) {
 							if (plausible(email)) void change(() => api.setOperator(roomId, email, true));
 						}}
 					>
-						<div className="join w-full">
+						{/* `validator` twice: the input colours itself, the hint reveals off the
+						    wrapper. No `required`, so an empty field is unfinished, not wrong. */}
+						<div className="join validator w-full">
 							<input
 								type="email"
 								pattern={EMAIL_PATTERN}
 								maxLength={EMAIL_MAX}
-								className={`input input-sm join-item w-full ${wrong ? 'input-error' : ''}`}
+								className="input validator input-sm join-item w-full"
 								placeholder="name@example.com"
 								aria-label="Operator email"
-								aria-invalid={wrong}
-								aria-describedby={wrong ? HINT : undefined}
+								aria-describedby={HINT}
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
-								onBlur={() => setTouched(true)}
 							/>
 							<button
 								type="submit"
@@ -181,11 +179,9 @@ export function Operators({ roomId }: { roomId: string }) {
 								Add
 							</button>
 						</div>
-						{wrong && (
-							<p id={HINT} className="text-error mt-2 text-xs">
-								Needs to look like name@example.com.
-							</p>
-						)}
+						<p id={HINT} className="validator-hint hidden">
+							Needs to look like name@example.com.
+						</p>
 					</form>
 					{error && (
 						<p role="alert" className="text-error text-sm">
