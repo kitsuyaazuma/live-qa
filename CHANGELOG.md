@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.8](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.7...v0.0.8) (2026-09-24)
+
+
+### Features
+
+* switch between the room and its admin ([#40](https://github.com/kitsuyaazuma/live-qa/issues/40)) ([3d799e4](https://github.com/kitsuyaazuma/live-qa/commit/3d799e4eecda7ae8b54dc09903bcdcea2ea90fe4))
+
+
+### Bug Fixes
+
+* keep the header steady between the room and its admin ([#43](https://github.com/kitsuyaazuma/live-qa/issues/43)) ([0489f35](https://github.com/kitsuyaazuma/live-qa/commit/0489f358c4e7d891fba83721e41e4bdfa7a1a808))
+* keep the stage live when admin screens fill the room ([#42](https://github.com/kitsuyaazuma/live-qa/issues/42)) ([5056875](https://github.com/kitsuyaazuma/live-qa/commit/5056875e4373e8a8c68f89745d775abccf68f275))
+
 ## [0.0.7](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.6...v0.0.7) (2026-09-23)
 
 
