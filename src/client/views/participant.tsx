@@ -1,6 +1,7 @@
 import { Clock, Flame, Lock, Megaphone, MessageSquare, MessageSquareDashed } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
+import { AdminLink } from '../components/admin-link';
 import { AskForm } from '../components/ask-form';
 import { BackToTop } from '../components/back-to-top';
 import { Challenge } from '../components/challenge';
@@ -89,7 +90,7 @@ export function Participant({ roomId }: { roomId: string }) {
 	}
 
 	return (
-		<Page width="max-w-2xl" connection={room.connection}>
+		<Page width="max-w-2xl" connection={room.connection} actions={<AdminLink roomId={roomId} />}>
 			{room.notice && (
 				<div role="status" className="alert alert-info alert-soft">
 					<Megaphone className="size-5 shrink-0" />
