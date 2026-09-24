@@ -6,6 +6,7 @@ import {
 	Lock,
 	type LucideIcon,
 	Presentation,
+	Users,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import type { Question, Status, Target } from '../../protocol';
@@ -77,7 +78,16 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 	}
 
 	return (
-		<Page width="max-w-3xl" connection={room.connection}>
+		<Page
+			width="max-w-3xl"
+			connection={room.connection}
+			actions={
+				<Link to={`/r/${roomId}`} className="btn btn-sm gap-1.5">
+					<Users className="size-4" />
+					Audience
+				</Link>
+			}
+		>
 			<div className="flex items-center gap-2">
 				<Share roomId={roomId} />
 				<Link to={`/r/${roomId}/present`} className="btn btn-primary gap-2">
