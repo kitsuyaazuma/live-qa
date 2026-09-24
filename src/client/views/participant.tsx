@@ -1,13 +1,13 @@
 import { Clock, Flame, Lock, Megaphone, MessageSquare, MessageSquareDashed } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Question, type Status, withdrawable } from '../../protocol';
-import { AdminLink } from '../components/admin-link';
 import { AskForm } from '../components/ask-form';
 import { BackToTop } from '../components/back-to-top';
 import { Challenge } from '../components/challenge';
 import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
+import { AudienceSwitch } from '../components/view-switch';
 import { byNewest, byVotes } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -90,7 +90,11 @@ export function Participant({ roomId }: { roomId: string }) {
 	}
 
 	return (
-		<Page width="max-w-2xl" connection={room.connection} actions={<AdminLink roomId={roomId} />}>
+		<Page
+			width="max-w-2xl"
+			connection={room.connection}
+			actions={<AudienceSwitch roomId={roomId} />}
+		>
 			{room.notice && (
 				<div role="status" className="alert alert-info alert-soft">
 					<Megaphone className="size-5 shrink-0" />

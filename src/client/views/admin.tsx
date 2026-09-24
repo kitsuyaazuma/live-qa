@@ -6,7 +6,6 @@ import {
 	Lock,
 	type LucideIcon,
 	Presentation,
-	Users,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import type { Question, Status, Target } from '../../protocol';
@@ -16,6 +15,7 @@ import { Page } from '../components/page';
 import { Settings } from '../components/settings';
 import { Share } from '../components/share';
 import { StageCard } from '../components/stage-card';
+import { ViewSwitch } from '../components/view-switch';
 import { byOldest, forStage } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -81,12 +81,7 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 		<Page
 			width="max-w-3xl"
 			connection={room.connection}
-			actions={
-				<Link to={`/r/${roomId}`} className="btn btn-sm gap-1.5">
-					<Users className="size-4" />
-					Audience
-				</Link>
-			}
+			actions={<ViewSwitch roomId={roomId} current="admin" />}
 		>
 			<div className="flex items-center gap-2">
 				<Share roomId={roomId} />
