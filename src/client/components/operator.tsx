@@ -40,7 +40,7 @@ export function Operator({
 	}
 	if (access === undefined || me === undefined) {
 		return (
-			<Page width="max-w-sm">
+			<Page width="max-w-3xl">
 				<span className="loading loading-spinner mx-auto my-10" />
 			</Page>
 		);

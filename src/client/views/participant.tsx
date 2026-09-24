@@ -75,7 +75,7 @@ export function Participant({ roomId }: { roomId: string }) {
 
 	if (room.missing) {
 		return (
-			<Page width="max-w-2xl">
+			<Page width="max-w-3xl">
 				<div className="flex flex-col items-center gap-2 py-16 text-center">
 					<p className="text-lg">
 						There is no room called <span className="font-medium">{roomId}</span>.
@@ -91,7 +91,7 @@ export function Participant({ roomId }: { roomId: string }) {
 
 	return (
 		<Page
-			width="max-w-2xl"
+			width="max-w-3xl"
 			connection={room.connection}
 			actions={<AudienceSwitch roomId={roomId} />}
 		>

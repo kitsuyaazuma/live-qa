@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { Page } from './components/page';
 import { usePath } from './router';
 import { Landing } from './views/landing';
 import { Participant } from './views/participant';
@@ -27,9 +28,15 @@ export function App() {
 	return (
 		<Suspense
 			fallback={
-				<div className="flex min-h-dvh items-center justify-center">
-					<span className="loading loading-spinner loading-lg" />
-				</div>
+				view === 'admin' ? (
+					<Page width="max-w-3xl">
+						<span className="loading loading-spinner mx-auto my-10" />
+					</Page>
+				) : (
+					<div className="flex min-h-dvh items-center justify-center">
+						<span className="loading loading-spinner loading-lg" />
+					</div>
+				)
 			}
 		>
 			{view === 'admin' ? <Admin roomId={roomId} /> : <Present roomId={roomId} />}
