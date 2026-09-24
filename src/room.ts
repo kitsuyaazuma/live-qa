@@ -119,6 +119,11 @@ const encoder = new TextEncoder();
 
 type Stream = WritableStreamDefaultWriter<Uint8Array>;
 
+interface Screen {
+	writer: Stream;
+	stage: boolean;
+}
+
 function frame(version: number, diff: Snapshot): Uint8Array {
 	return encoder.encode(`id: ${version}\ndata: ${JSON.stringify(diff)}\n\n`);
 }
@@ -142,7 +147,8 @@ export class Room extends DurableObject<Env> {
 	private moderated = false;
 	private open = true;
 	private notice = '';
-	private readonly streams = new Set<Stream>();
+	/** Keyed by the screen, and in the order they connected. */
+	private readonly streams = new Map<string, Screen>();
 	private beat: ReturnType<typeof setInterval> | undefined;
 	private readonly translation: TranslationSettings | null;
 
@@ -408,15 +414,29 @@ export class Room extends DurableObject<Env> {
 		return this.project(input.view, input.since ?? 0);
 	}
 
-	/** Null past the cap: a thousand streams on one object is what the cached read exists to avoid. */
-	async subscribe(since: number): Promise<ReadableStream | null> {
-		if (this.streams.size >= STREAMS_MAX) return null;
+	/** Null past the cap: a thousand streams on one object is what the cached read exists to avoid.
+	 * A screen that comes back replaces its own stream, which the room may not
+	 * have seen close until the next heartbeat. The stage takes the oldest
+	 * admin's place rather than go dark in front of the hall. */
+	async subscribe(input: {
+		since: number;
+		screen: string;
+		stage: boolean;
+	}): Promise<ReadableStream | null> {
+		this.close(input.screen);
+		if (this.streams.size >= STREAMS_MAX) {
+			const admin = input.stage
+				? [...this.streams].find(([, screen]) => !screen.stage)?.[0]
+				: undefined;
+			if (admin === undefined) return null;
+			this.close(admin);
+		}
 
 		const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
 		const writer = writable.getWriter();
-		this.streams.add(writer);
+		this.streams.set(input.screen, { writer, stage: input.stage });
 		this.beat ??= setInterval(() => this.each(encoder.encode(': beat\n\n')), HEARTBEAT_MS);
-		this.send(writer, frame(this.version, this.project('operator', since)));
+		this.send(input.screen, writer, frame(this.version, this.project('operator', input.since)));
 
 		return readable;
 	}
@@ -430,7 +450,7 @@ export class Room extends DurableObject<Env> {
 		this.open = true;
 		this.notice = '';
 		// A screen cannot be told to forget in a diff, so it is made to reconnect.
-		for (const writer of this.streams) void writer.close().catch(() => {});
+		for (const { writer } of this.streams.values()) void writer.close().catch(() => {});
 		this.streams.clear();
 	}
 
@@ -443,14 +463,23 @@ export class Room extends DurableObject<Env> {
 	}
 
 	private each(bytes: Uint8Array): void {
-		for (const writer of this.streams) this.send(writer, bytes);
+		for (const [id, { writer }] of this.streams) this.send(id, writer, bytes);
+	}
+
+	private close(id: string): void {
+		const screen = this.streams.get(id);
+		if (!screen) return;
+		this.streams.delete(id);
+		void screen.writer.close().catch(() => {});
 	}
 
 	/** Not awaited: a commit must reach the room row with no await in between,
 	 * and a screen that has closed must not hold up the room. */
-	private send(writer: Stream, bytes: Uint8Array): void {
+	private send(id: string, writer: Stream, bytes: Uint8Array): void {
 		writer.write(bytes).catch(() => {
-			this.streams.delete(writer);
+			// The screen may have come back on a new stream since this write.
+			if (this.streams.get(id)?.writer !== writer) return;
+			this.streams.delete(id);
 			if (this.streams.size === 0) {
 				clearInterval(this.beat);
 				this.beat = undefined;

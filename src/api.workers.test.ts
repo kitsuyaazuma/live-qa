@@ -62,11 +62,15 @@ const ROOMS = [
 	'packed',
 	'params',
 	'pek2026-keynote',
+	'priority',
 	'reject',
 	'resume',
+	'return',
+	'stages',
 	'stale304',
 	'status',
 	'stream',
+	'token',
 	'trickle',
 	'vote',
 ];
@@ -678,6 +682,18 @@ function events(roomId: string, since?: number) {
 	return call(`/api/rooms/${roomId}/events${query}`, { headers: ADMIN });
 }
 
+function screen(roomId: string, id: string, stage = false) {
+	const query = `?screen=${id}${stage ? '&stage=1' : ''}`;
+	return call(`/api/rooms/${roomId}/events${query}`, { headers: ADMIN });
+}
+
+/** True once the room has closed the stream, after the opening frame. */
+async function ended(response: Response): Promise<boolean> {
+	const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+	await pushed(reader);
+	return (await reader.read()).done;
+}
+
 describe('operator stream', () => {
 	it('opens with the room as it stands and pushes what changes after', async () => {
 		await post('stream', 'q1');
@@ -715,6 +731,50 @@ describe('operator stream', () => {
 
 		expect(statuses.filter((status) => status === 200)).toHaveLength(8);
 		expect(statuses.filter((status) => status === 503)).toHaveLength(1);
+	});
+
+	it('replaces a screen that comes back rather than counting it again', async () => {
+		const first = await screen('return', 's0');
+		const rest = await Promise.all(
+			Array.from({ length: 7 }, (_, i) => screen('return', `s${i + 1}`)),
+		);
+
+		const again = await screen('return', 's0');
+		const stranger = await screen('return', 'new');
+
+		expect(again.status).toBe(200);
+		expect(await ended(first)).toBe(true);
+		expect(stranger.status).toBe(503);
+		await Promise.all([again, ...rest].map((response) => response.body?.cancel()));
+	});
+
+	it('makes way for the stage by closing the oldest admin screen', async () => {
+		const admins = [];
+		for (let i = 0; i < 8; i++) admins.push(await screen('priority', `a${i}`));
+
+		const stage = await screen('priority', 'stage', true);
+
+		expect(stage.status).toBe(200);
+		expect(await ended(admins[0] as Response)).toBe(true);
+		expect((await screen('priority', 'late')).status).toBe(503);
+		await Promise.all([stage, ...admins.slice(1)].map((response) => response.body?.cancel()));
+	});
+
+	it('turns the stage away only when stages fill the room', async () => {
+		const stages = await Promise.all(
+			Array.from({ length: 8 }, (_, i) => screen('stages', `t${i}`, true)),
+		);
+
+		const ninth = await screen('stages', 'extra', true);
+
+		expect(ninth.status).toBe(503);
+		await Promise.all(stages.map((response) => response.body?.cancel()));
+	});
+
+	it('refuses a screen that is not a short token', async () => {
+		const response = await screen('token', 'x'.repeat(65));
+
+		expect(response.status).toBe(400);
 	});
 
 	it('refuses a stream to someone not signed in', async () => {
