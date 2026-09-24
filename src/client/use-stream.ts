@@ -7,8 +7,7 @@ const SILENCE_MS = 25000;
 const RETRY_MS = 1000;
 const RETRY_CEILING_MS = 10000;
 
-/** One per page load: moving between the admin and the stage in this tab, or
- * coming back after a drop, replaces the stream instead of adding one. */
+/** One per page load, so the room replaces this tab's stream. */
 const SCREEN = crypto.randomUUID();
 
 export type StreamConnection = 'opening' | 'live' | 'stale' | 'denied' | 'crowded';

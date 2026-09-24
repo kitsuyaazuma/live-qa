@@ -147,7 +147,6 @@ export class Room extends DurableObject<Env> {
 	private moderated = false;
 	private open = true;
 	private notice = '';
-	/** Keyed by the screen, and in the order they connected. */
 	private readonly streams = new Map<string, Screen>();
 	private beat: ReturnType<typeof setInterval> | undefined;
 	private readonly translation: TranslationSettings | null;
@@ -415,9 +414,7 @@ export class Room extends DurableObject<Env> {
 	}
 
 	/** Null past the cap: a thousand streams on one object is what the cached read exists to avoid.
-	 * A screen that comes back replaces its own stream, which the room may not
-	 * have seen close until the next heartbeat. The stage takes the oldest
-	 * admin's place rather than go dark in front of the hall. */
+	 * The stage takes the oldest admin's place. */
 	async subscribe(input: {
 		since: number;
 		screen: string;
@@ -477,7 +474,7 @@ export class Room extends DurableObject<Env> {
 	 * and a screen that has closed must not hold up the room. */
 	private send(id: string, writer: Stream, bytes: Uint8Array): void {
 		writer.write(bytes).catch(() => {
-			// The screen may have come back on a new stream since this write.
+			// Already replaced.
 			if (this.streams.get(id)?.writer !== writer) return;
 			this.streams.delete(id);
 			if (this.streams.size === 0) {

@@ -687,7 +687,6 @@ function screen(roomId: string, id: string, stage = false) {
 	return call(`/api/rooms/${roomId}/events${query}`, { headers: ADMIN });
 }
 
-/** True once the room has closed the stream, after the opening frame. */
 async function ended(response: Response): Promise<boolean> {
 	const reader = (response.body as ReadableStream<Uint8Array>).getReader();
 	await pushed(reader);

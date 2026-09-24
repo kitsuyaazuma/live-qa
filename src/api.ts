@@ -513,7 +513,6 @@ function whole(value: string | undefined): number {
 
 const SCREEN = /^[\w-]{1,64}$/;
 
-/** A client without one gets a screen of its own, which is how every stream began. */
 function screenOf(value: string | undefined): string {
 	if (value === undefined) return crypto.randomUUID();
 	if (!SCREEN.test(value)) fail(new Error('screen must be a short token'));
