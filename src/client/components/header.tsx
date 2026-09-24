@@ -163,7 +163,7 @@ export function Header({
 			<div className={`navbar mx-auto min-h-0 gap-2 px-3 py-3 ${width}`}>
 				<div className="navbar-start">
 					<Link to="/" className="flex items-center">
-						<Banner className="h-9 md:h-10" />
+						<Banner className="h-7 min-[360px]:h-9 md:h-10" />
 					</Link>
 				</div>
 				<div className="navbar-end gap-2">

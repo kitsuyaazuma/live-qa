@@ -15,6 +15,7 @@ import { Page } from '../components/page';
 import { Settings } from '../components/settings';
 import { Share } from '../components/share';
 import { StageCard } from '../components/stage-card';
+import { ViewSwitch } from '../components/view-switch';
 import { byOldest, forStage } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -77,7 +78,11 @@ function AdminScreen({ roomId, room }: { roomId: string; room: StreamState }) {
 	}
 
 	return (
-		<Page width="max-w-3xl" connection={room.connection}>
+		<Page
+			width="max-w-3xl"
+			connection={room.connection}
+			actions={<ViewSwitch roomId={roomId} current="admin" />}
+		>
 			<div className="flex items-center gap-2">
 				<Share roomId={roomId} />
 				<Link to={`/r/${roomId}/present`} className="btn btn-primary gap-2">

@@ -7,6 +7,7 @@ import { Challenge } from '../components/challenge';
 import { Filter, useFilter } from '../components/filter';
 import { Page } from '../components/page';
 import { QuestionCard } from '../components/question-card';
+import { AudienceSwitch } from '../components/view-switch';
 import { byNewest, byVotes } from '../order';
 import { Link } from '../router';
 import { useNow } from '../time';
@@ -89,7 +90,11 @@ export function Participant({ roomId }: { roomId: string }) {
 	}
 
 	return (
-		<Page width="max-w-2xl" connection={room.connection}>
+		<Page
+			width="max-w-2xl"
+			connection={room.connection}
+			actions={<AudienceSwitch roomId={roomId} />}
+		>
 			{room.notice && (
 				<div role="status" className="alert alert-info alert-soft">
 					<Megaphone className="size-5 shrink-0" />
