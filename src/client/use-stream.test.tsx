@@ -25,6 +25,7 @@ function diff(version: number, questions: Question[]): Snapshot {
 let push: (text: string) => void;
 let close: () => void;
 let asked: string[];
+let signals: AbortSignal[];
 let status: number;
 
 function frame(payload: Snapshot): string {
@@ -50,9 +51,11 @@ async function settle(ms = 0): Promise<void> {
 beforeEach(() => {
 	vi.useFakeTimers();
 	asked = [];
+	signals = [];
 	status = 200;
-	vi.stubGlobal('fetch', (input: string) => {
+	vi.stubGlobal('fetch', (input: string, init?: RequestInit) => {
 		asked.push(String(input));
+		if (init?.signal) signals.push(init.signal);
 		return Promise.resolve(status === 200 ? open() : new Response('no', { status }));
 	});
 });
@@ -64,7 +67,7 @@ afterEach(() => {
 
 describe('useStream', () => {
 	it('holds every question it has been told about, not just the last frame', async () => {
-		const { result } = renderHook(() => useStream('keynote', true));
+		const { result } = renderHook(() => useStream('keynote', true, false));
 		await settle();
 
 		await act(async () => {
@@ -80,7 +83,7 @@ describe('useStream', () => {
 	});
 
 	it('replaces a question the room has changed', async () => {
-		const { result } = renderHook(() => useStream('keynote', true));
+		const { result } = renderHook(() => useStream('keynote', true, false));
 		await settle();
 
 		await act(async () => {
@@ -95,7 +98,7 @@ describe('useStream', () => {
 	});
 
 	it('steps over the heartbeats', async () => {
-		const { result } = renderHook(() => useStream('keynote', true));
+		const { result } = renderHook(() => useStream('keynote', true, false));
 		await settle();
 
 		await act(async () => {
@@ -107,7 +110,7 @@ describe('useStream', () => {
 	});
 
 	it('forgets what it holds when the room comes back at a lower version', async () => {
-		const { result } = renderHook(() => useStream('keynote', true));
+		const { result } = renderHook(() => useStream('keynote', true, false));
 		await settle();
 		await act(async () => {
 			push(frame(diff(4, [question({ id: 'old' })])));
@@ -121,7 +124,7 @@ describe('useStream', () => {
 	});
 
 	it('asks again from where it stopped when the stream drops', async () => {
-		renderHook(() => useStream('keynote', true));
+		renderHook(() => useStream('keynote', true, false));
 		await settle();
 		await act(async () => {
 			push(frame(diff(7, [question()])));
@@ -136,9 +139,39 @@ describe('useStream', () => {
 		expect(asked[1]).toContain('since=7');
 	});
 
+	it('comes back as the same screen, so the room replaces its stream', async () => {
+		renderHook(() => useStream('keynote', true, false));
+		await settle();
+
+		await act(async () => {
+			close();
+		});
+		await settle(5000);
+
+		const screens = asked.map((url) => new URL(url, 'http://localhost').searchParams.get('screen'));
+		expect(screens[0]).toBeTruthy();
+		expect(screens[1]).toBe(screens[0]);
+	});
+
+	it('says when it is the stage', async () => {
+		renderHook(() => useStream('keynote', true, true));
+		await settle();
+
+		expect(asked[0]).toContain('stage=1');
+	});
+
+	it('lets go of the stream when the screen goes away', async () => {
+		const { unmount } = renderHook(() => useStream('keynote', true, false));
+		await settle();
+
+		unmount();
+
+		expect(signals[0]?.aborted).toBe(true);
+	});
+
 	it('says it is not allowed rather than asking again', async () => {
 		status = 401;
-		const { result } = renderHook(() => useStream('keynote', true));
+		const { result } = renderHook(() => useStream('keynote', true, false));
 
 		await settle(20000);
 

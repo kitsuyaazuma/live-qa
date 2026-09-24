@@ -7,6 +7,9 @@ const SILENCE_MS = 25000;
 const RETRY_MS = 1000;
 const RETRY_CEILING_MS = 10000;
 
+/** One per page load, so the room replaces this tab's stream. */
+const SCREEN = crypto.randomUUID();
+
 export type StreamConnection = 'opening' | 'live' | 'stale' | 'denied' | 'crowded';
 
 export interface StreamState {
@@ -29,7 +32,7 @@ const EMPTY: StreamState = {
 	connection: 'opening',
 };
 
-export function useStream(roomId: string, enabled: boolean): StreamState {
+export function useStream(roomId: string, enabled: boolean, stage: boolean): StreamState {
 	const [state, setState] = useState<StreamState>(EMPTY);
 
 	useEffect(() => {
@@ -39,14 +42,15 @@ export function useStream(roomId: string, enabled: boolean): StreamState {
 		let stopped = false;
 		let since = 0;
 		let attempt = 0;
+		let controller = new AbortController();
 
 		const run = async () => {
 			while (!stopped) {
-				const controller = new AbortController();
+				controller = new AbortController();
 				let silence = setTimeout(() => controller.abort(), SILENCE_MS);
 				try {
 					const response = await fetch(
-						`/api/rooms/${encodeURIComponent(roomId)}/events?since=${since}`,
+						`/api/rooms/${encodeURIComponent(roomId)}/events?since=${since}&screen=${SCREEN}${stage ? '&stage=1' : ''}`,
 						{ signal: controller.signal },
 					);
 					if (response.status === 401 || response.status === 403) {
@@ -96,8 +100,9 @@ export function useStream(roomId: string, enabled: boolean): StreamState {
 		void run();
 		return () => {
 			stopped = true;
+			controller.abort();
 		};
-	}, [roomId, enabled]);
+	}, [roomId, enabled, stage]);
 
 	return state;
 }

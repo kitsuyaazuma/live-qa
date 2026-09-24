@@ -38,7 +38,11 @@ function Address({ link }: { link: string }) {
 }
 
 export default function Present({ roomId }: { roomId: string }) {
-	return <Operator roomId={roomId}>{(room) => <Stage roomId={roomId} room={room} />}</Operator>;
+	return (
+		<Operator roomId={roomId} stage>
+			{(room) => <Stage roomId={roomId} room={room} />}
+		</Operator>
+	);
 }
 
 /** Pinned to the brand theme by a checked controller; with no header here,

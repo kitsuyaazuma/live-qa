@@ -8,9 +8,11 @@ import { SignIn } from './sign-in';
 
 export function Operator({
 	roomId,
+	stage = false,
 	children,
 }: {
 	roomId: string;
+	stage?: boolean;
 	children: (room: StreamState) => ReactNode;
 }) {
 	const me = useMe();
@@ -27,7 +29,7 @@ export function Operator({
 			stale = true;
 		};
 	}, [roomId]);
-	const room = useStream(roomId, access?.operator === true);
+	const room = useStream(roomId, access?.operator === true, stage);
 
 	if (error) {
 		return (

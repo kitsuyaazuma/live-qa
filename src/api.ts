@@ -511,9 +511,21 @@ function whole(value: string | undefined): number {
 	return parsed;
 }
 
+const SCREEN = /^[\w-]{1,64}$/;
+
+function screenOf(value: string | undefined): string {
+	if (value === undefined) return crypto.randomUUID();
+	if (!SCREEN.test(value)) fail(new Error('screen must be a short token'));
+	return value;
+}
+
 /** Operator screens only: a stream per phone would put the audience back on the object. */
 api.get('/api/rooms/:roomId/events', operator, async (c) => {
-	const stream = await room(c.env, c.req.param('roomId')).subscribe(whole(c.req.query('since')));
+	const stream = await room(c.env, c.req.param('roomId')).subscribe({
+		since: whole(c.req.query('since')),
+		screen: screenOf(c.req.query('screen')),
+		stage: c.req.query('stage') === '1',
+	});
 	if (!stream) return c.json({ error: 'this room already has enough live screens' }, 503);
 
 	return new Response(stream, {
