@@ -16,9 +16,9 @@ https://github.com/user-attachments/assets/f38dc23e-cd2f-401f-a46d-aea422105ca6
 
 ```mermaid
 flowchart LR
-  aud["Audience"] -->|"poll · 2.5s"| cache["Audience snapshot<br/><i>Cache</i><br/>max-age 2s"]
-  cache -.->|"miss"| worker["API & auth<br/><i>Workers · Hono</i>"]
+  aud["Audience"] -->|"poll · 2.5s"| worker["API & auth<br/><i>Workers · Hono</i>"]
   ops["Operator"] <-->|"SSE"| worker
+  worker <-->|"hit · max-age 2s"| cache["Audience snapshot<br/><i>Cache API</i>"]
   worker <-->|"RPC"| room["Room<br/><i>Durable Objects</i><br/>one per room"]
   room <-.-> ai["Translation<br/><i>Workers AI</i>"]
   linkStyle 0 stroke-width:3px
