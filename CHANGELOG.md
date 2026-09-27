@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.9](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.8...v0.0.9) (2026-09-27)
+
+
+### Bug Fixes
+
+* return 304 for matching weak ETags ([#46](https://github.com/kitsuyaazuma/live-qa/issues/46)) ([73952bc](https://github.com/kitsuyaazuma/live-qa/commit/73952bcb3574c38b919d96b7dbd3e4bfc5bce61d))
+
 ## [0.0.8](https://github.com/kitsuyaazuma/live-qa/compare/v0.0.7...v0.0.8) (2026-09-24)
 
 
