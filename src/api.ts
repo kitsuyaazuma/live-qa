@@ -61,6 +61,15 @@ import { verifyTurnstile } from './turnstile';
  */
 const AUDIENCE_MAX_AGE = 2;
 
+/** If-None-Match uses weak comparison, so W/"1" matches "1". */
+function matchesIfNoneMatch(value: string | undefined, etag: string): boolean {
+	if (!value) return false;
+	return value.split(',').some((candidate) => {
+		const tag = candidate.trim();
+		return tag === '*' || (tag.startsWith('W/') ? tag.slice(2) : tag) === etag;
+	});
+}
+
 /** Bounds one request body well above any question a room will store. */
 const BODY_MAX = 16 * 1024;
 
@@ -262,7 +271,7 @@ api.get('/api/rooms/:roomId/questions', async (c) => {
 	}
 
 	const etag = response.headers.get('etag');
-	if (etag && c.req.header('if-none-match') === etag) {
+	if (etag && matchesIfNoneMatch(c.req.header('if-none-match'), etag)) {
 		return new Response(null, {
 			status: 304,
 			headers: { etag, 'cache-control': `public, max-age=${AUDIENCE_MAX_AGE}` },

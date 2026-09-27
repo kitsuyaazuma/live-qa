@@ -73,6 +73,7 @@ const ROOMS = [
 	'token',
 	'trickle',
 	'vote',
+	'weaketag',
 ];
 
 let ADMIN: Record<string, string> = {};
@@ -160,6 +161,20 @@ describe('questions api', () => {
 
 		expect(response.status).toBe(304);
 		expect(await response.text()).toBe('');
+	});
+
+	it('accepts weak and listed etags on both cache miss and hit', async () => {
+		await post('weaketag', 'q1');
+
+		const miss = await read('weaketag', { 'if-none-match': 'W/"1"' });
+		expect(miss.status).toBe(304);
+		expect(await miss.text()).toBe('');
+
+		const hit = await read('weaketag', { 'if-none-match': '"0", W/"1"' });
+		expect(hit.status).toBe(304);
+
+		const stale = await read('weaketag', { 'if-none-match': 'W/"0"' });
+		expect(stale.status).toBe(200);
 	});
 
 	it('answers the 304 from the cached entry, not the object', async () => {
