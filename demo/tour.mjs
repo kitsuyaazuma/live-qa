@@ -294,13 +294,6 @@ await tap(A.getByRole('tab', { name: 'Popular' }));
 await beat(1200);
 
 await tap(S.getByLabel('Settings'));
-await beat(900);
-await tap(S.getByRole('radio', { name: /Full/ }));
-await beat(2000);
-await closeSettings();
-await beat(2000);
-
-await tap(S.getByLabel('Settings'));
 await beat(700);
 await tap(S.getByRole('checkbox', { name: /Review before showing/ }));
 await beat(1200);
@@ -326,6 +319,17 @@ await S.locator(`li[data-key="${q1}"].bg-primary`).waitFor({ timeout: 15000 });
 mark('scene 6: on the stage');
 await beat(1500);
 await settle();
+
+// Offered on the staged card alone, and only while the headline is the line above.
+const staged = S.locator(`li[data-key="${q1}"]`);
+const fuller = staged.getByLabel('Show the full translation');
+if (await fuller.isVisible()) {
+	await tap(fuller);
+	await beat(2500);
+	mark('scene 6: the full translation');
+} else {
+	mark('scene 6: no headline to put a full translation under');
+}
 await page.screenshot({ path: `${OUT}still.png` });
 await beat(1500);
 await tap(S.locator(`li[data-key="${q1}"]`).getByLabel('Mark answered'));
@@ -341,6 +345,14 @@ await beat(1800);
 await closeSettings();
 await beat(2500);
 mark('scene 7: only yours');
+
+await tap(O.getByRole('link', { name: 'Audience' }));
+await O.getByRole('textbox', { name: 'Your question' }).waitFor({ timeout: 15000 });
+await beat(2000);
+await tap(O.getByRole('link', { name: 'Admin' }));
+await O.getByRole('tab', { name: /Live/ }).waitFor({ timeout: 15000 });
+await beat(1500);
+mark('scene 7: the operator looks at the room');
 
 await tap(S.getByLabel('Settings'));
 await beat(800);

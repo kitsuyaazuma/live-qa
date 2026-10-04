@@ -7,7 +7,7 @@
 
 Self-hosted live Q&A for conferences, with built-in translation.
 
-https://github.com/user-attachments/assets/f38dc23e-cd2f-401f-a46d-aea422105ca6
+https://github.com/user-attachments/assets/488535d5-4ab9-483c-b619-a83d7a567617
 
 - The audience scans a QR code, asks and upvotes from their phones. No account.
 - Operators review questions, put one on the stage screen, mark it answered.
