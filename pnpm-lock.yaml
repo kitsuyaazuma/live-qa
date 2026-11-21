@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@hono/oauth-providers':
-        specifier: ^0.9.0
-        version: 0.9.0(hono@4.13.18)
+        specifier: ^0.9.1
+        version: 0.9.1(hono@4.13.18)
       '@paulmillr/qr':
         specifier: ^0.3.0
         version: 0.3.0
@@ -625,8 +625,8 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@hono/oauth-providers@0.9.0':
-    resolution: {integrity: sha512-OgDPB+AM6OgA5ys1y+7G24bkb8V4OINr+6JFDSuSYni80Mmd7BGpJ0e02StQDMPL9ebuWI8ABhxx1bk+9VBcBA==}
+  '@hono/oauth-providers@0.9.1':
+    resolution: {integrity: sha512-dpnw9xJbYMyHsmlv+jYHB6jk4BY2FlwiRNVMiM7h0y19eprq11+7XaSBrBoTApHgY7sB0XpilH9VEVuY52aqnw==}
     engines: {node: '>=18.4.0'}
     peerDependencies:
       hono: '>=3.0.0'
@@ -2339,7 +2339,7 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@hono/oauth-providers@0.9.0(hono@4.13.18)':
+  '@hono/oauth-providers@0.9.1(hono@4.13.18)':
     dependencies:
       hono: 4.13.18
 
